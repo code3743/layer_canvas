@@ -66,25 +66,37 @@ external int lc_render_scene(
   ffi.Pointer<ffi.Size> out_len,
 );
 
-/// Registers `data_size` bytes of font data (TTF/OTF) under `name`, so any
-/// TextLayer whose fontFamily equals `name` renders with it instead of the
-/// backend's built-in default. Registration is global and persists for the
-/// lifetime of the process (or until lc_font_unregister is called) — it is
-/// not tied to any single Scene or render call. `data` is copied; the caller
-/// may free it as soon as this function returns. Returns 0 on success.
+/// Registers `data_size` bytes of font data (TTF/OTF) under `name` and
+/// `weight` (100..900, CSS/OpenType scale), so any TextLayer whose
+/// fontFamily equals `name` renders with whichever registered weight is
+/// closest to its own fontWeight. A family may have several weights
+/// registered under the same `name`; registering the same `name`+`weight`
+/// again replaces only that variant. Registration is global and persists
+/// for the lifetime of the process (or until lc_font_unregister is called)
+/// — it is not tied to any single Scene or render call. `data` is copied;
+/// the caller may free it as soon as this function returns. Returns 0 on
+/// success.
 @ffi.Native<
-  ffi.Int32 Function(ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Uint8>, ffi.Size)
+  ffi.Int32 Function(
+    ffi.Pointer<ffi.Char>,
+    ffi.Int32,
+    ffi.Pointer<ffi.Uint8>,
+    ffi.Size,
+  )
 >()
 external int lc_font_register(
   ffi.Pointer<ffi.Char> name,
+  int weight,
   ffi.Pointer<ffi.Uint8> data,
   int data_size,
 );
 
-/// Removes a font previously registered under `name`. Returns 0 if found and
-/// removed, 1 if no font was registered under that name.
-@ffi.Native<ffi.Int32 Function(ffi.Pointer<ffi.Char>)>()
-external int lc_font_unregister(ffi.Pointer<ffi.Char> name);
+/// Removes the font previously registered under `name`+`weight`. Returns 0
+/// if found and removed, 1 if no font was registered under that exact
+/// name+weight pair. Other weights registered under the same `name` are
+/// unaffected.
+@ffi.Native<ffi.Int32 Function(ffi.Pointer<ffi.Char>, ffi.Int32)>()
+external int lc_font_unregister(ffi.Pointer<ffi.Char> name, int weight);
 
 /// Wire format for a single layer, shared between the public FFI surface
 /// (engine.h) and every backend implementation (backend.h). This is *our*
