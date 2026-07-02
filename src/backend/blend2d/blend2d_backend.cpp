@@ -7,9 +7,12 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <iterator>
+#include <map>
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 // LC_EMBED_DEFAULT_FONT is defined by hook/build.dart unless a consumer
@@ -91,22 +94,45 @@ const BLFontFace& BoldFace() {
 #endif  // LC_EMBED_DEFAULT_FONT
 
 // User-registered fonts (lc_font_register / lc_font_unregister), keyed by
-// the name TextLayer.fontFamily is matched against. This is the only piece
-// of state in this backend that outlives a single render call, so it's
-// guarded by a mutex — render_layers() itself never mutates it, only reads
-// under lock (see ResolveFontFace), but registration can race against a
-// concurrent render from another isolate sharing this native library.
+// the name TextLayer.fontFamily is matched against, then by weight
+// (100..900, CSS/OpenType scale) - a single family name can have several
+// weights registered at once (see ResolveFontFace's closest-weight lookup
+// below). The inner map is a std::map (ordered by weight) rather than an
+// unordered_map so that lookup can use lower_bound to find the nearest
+// registered weight. This is the only piece of state in this backend that
+// outlives a single render call, so it's guarded by a mutex —
+// render_layers() itself never mutates it, only reads under lock (see
+// ResolveFontFace), but registration can race against a concurrent render
+// from another isolate sharing this native library.
 std::mutex& FontRegistryMutex() {
   static std::mutex mutex;
   return mutex;
 }
 
-std::unordered_map<std::string, BLFontFace>& FontRegistry() {
-  static std::unordered_map<std::string, BLFontFace> registry;
+std::unordered_map<std::string, std::map<int32_t, BLFontFace>>&
+FontRegistry() {
+  static std::unordered_map<std::string, std::map<int32_t, BLFontFace>>
+      registry;
   return registry;
 }
 
-int32_t RegisterFont(const char* name, const uint8_t* data, size_t size) {
+// Returns the face in `weights` whose key is numerically closest to
+// `target`, favoring the lighter of the two candidates on an exact tie.
+// `weights` must not be empty.
+const BLFontFace& FindClosestWeightFace(
+    const std::map<int32_t, BLFontFace>& weights, int32_t target) {
+  const auto at_or_above = weights.lower_bound(target);
+  if (at_or_above == weights.begin()) return at_or_above->second;
+  if (at_or_above == weights.end()) return std::prev(at_or_above)->second;
+
+  const auto below = std::prev(at_or_above);
+  const int32_t above_diff = at_or_above->first - target;
+  const int32_t below_diff = target - below->first;
+  return below_diff <= above_diff ? below->second : at_or_above->second;
+}
+
+int32_t RegisterFont(const char* name, int32_t weight, const uint8_t* data,
+                      size_t size) {
   if (name == nullptr || name[0] == '\0' || data == nullptr || size == 0) {
     return -1;
   }
@@ -125,14 +151,18 @@ int32_t RegisterFont(const char* name, const uint8_t* data, size_t size) {
   if (face.create_from_data(font_data, 0) != BL_SUCCESS) return -4;
 
   std::lock_guard<std::mutex> lock(FontRegistryMutex());
-  FontRegistry()[name] = face;
+  FontRegistry()[name][weight] = face;
   return 0;
 }
 
-int32_t UnregisterFont(const char* name) {
+int32_t UnregisterFont(const char* name, int32_t weight) {
   if (name == nullptr) return -1;
   std::lock_guard<std::mutex> lock(FontRegistryMutex());
-  return FontRegistry().erase(name) > 0 ? 0 : 1;
+
+  const auto it = FontRegistry().find(name);
+  if (it == FontRegistry().end() || it->second.erase(weight) == 0) return 1;
+  if (it->second.empty()) FontRegistry().erase(it);
+  return 0;
 }
 
 // Owns the one piece of Blend2D state a canvas needs. Kept separate from
@@ -210,10 +240,12 @@ constexpr int32_t kTextAlignRight = 2;
 // TextWeight, which uses the same 100-900 CSS/OpenType scale).
 constexpr int32_t kBoldWeightThreshold = 600;
 
-// Looks up layer.font_family in the user font registry first. When
+// Looks up layer.font_family in the user font registry first - if that
+// family has one or more weights registered, picks whichever is numerically
+// closest to layer.text_weight (see FindClosestWeightFace). When
 // LC_EMBED_DEFAULT_FONT is defined, falls back to one of the two embedded
 // Roboto weights if no font_family is set, or if it doesn't match any
-// registered font (e.g. a typo — rendering with the default is friendlier
+// registered family (e.g. a typo — rendering with the default is friendlier
 // than dropping the layer's text entirely). Builds without the embedded
 // font return an empty BLFontFace in that fallback case; RenderText treats
 // an empty face as "nothing to draw" rather than failing the render.
@@ -226,7 +258,9 @@ BLFontFace ResolveFontFace(const LcLayerDesc& layer) {
                             static_cast<size_t>(layer.font_family_length));
     std::lock_guard<std::mutex> lock(FontRegistryMutex());
     const auto it = FontRegistry().find(name);
-    if (it != FontRegistry().end()) return it->second;
+    if (it != FontRegistry().end() && !it->second.empty()) {
+      return FindClosestWeightFace(it->second, layer.text_weight);
+    }
   }
 #ifdef LC_EMBED_DEFAULT_FONT
   return layer.text_weight >= kBoldWeightThreshold ? BoldFace() : RegularFace();
