@@ -55,7 +55,7 @@ void main() {
 
     test('background is mutable after construction', () {
       final scene = Scene(width: 100, height: 100);
-      scene.background = const ImageSource.file('/tmp/bg.png');
+      scene.background = const LayerImageSource.file('/tmp/bg.png');
 
       expect(scene.background, isA<FileImageSource>());
       expect((scene.background as FileImageSource).path, '/tmp/bg.png');
@@ -101,20 +101,20 @@ void main() {
     test('exposes its own properties through type/properties', () {
       final layer = RectangleLayer(
         size: const Size2D(200, 100),
-        paint: const Paint(color: Color32.white, style: PaintStyle.fill),
+        paint: const LayerPaint(color: Color32.white, style: LayerPaintStyle.fill),
         cornerRadius: 12,
       );
 
       expect(layer.type, 'rectangle');
       expect(layer.properties['cornerRadius'], 12);
-      expect((layer.properties['paint'] as Paint).color, Color32.white);
+      expect((layer.properties['paint'] as LayerPaint).color, Color32.white);
     });
   });
 
   group('ImageLayer', () {
     test('carries its source and fit through properties', () {
       final layer = ImageLayer(
-        source: ImageSource.memory(Uint8List.fromList([1, 2, 3])),
+        source: LayerImageSource.memory(Uint8List.fromList([1, 2, 3])),
         fit: ImageFit.cover,
         size: const Size2D(64, 64),
       );
@@ -125,7 +125,7 @@ void main() {
     });
 
     test('size is null (intrinsic) unless given explicitly', () {
-      final layer = ImageLayer(source: const ImageSource.file('a.png'));
+      final layer = ImageLayer(source: const LayerImageSource.file('a.png'));
       expect(layer.size, isNull);
     });
   });

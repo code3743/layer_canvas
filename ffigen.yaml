@@ -8,8 +8,10 @@ output: 'lib/layer_canvas_bindings_generated.dart'
 headers:
   entry-points:
     - 'src/engine.h'
+    - 'src/scene_desc.h'
   include-directives:
     - 'src/engine.h'
+    - 'src/scene_desc.h'
 ffi-native:
 comments:
   style: any

@@ -4,12 +4,12 @@ import '../paint.dart';
 
 /// A filled and/or stroked rectangle, optionally with rounded corners.
 class RectangleLayer extends Layer {
-  final Paint paint;
+  final LayerPaint paint;
   final double cornerRadius;
 
   RectangleLayer({
     required Size2D size,
-    this.paint = const Paint(),
+    this.paint = const LayerPaint(),
     this.cornerRadius = 0,
     super.id,
     super.transform,
