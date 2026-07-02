@@ -4,18 +4,41 @@
 // ignore_for_file: type=lint, unused_import
 import 'dart:ffi' as ffi;
 
-/// A very short-lived native function.
-///
-/// For very short-lived functions, it is fine to call them on the main isolate.
-/// They will block the Dart execution while running the native function, so
-/// only do this for native functions which are guaranteed to be short-lived.
-@ffi.Native<ffi.IntPtr Function(ffi.IntPtr, ffi.IntPtr)>()
-external int sum(int a, int b);
+/// Creates a blank, fully transparent canvas of `width` x `height` pixels.
+/// Returns NULL if `width`/`height` are not positive or on allocation
+/// failure.
+@ffi.Native<ffi.Pointer<LcImage> Function(ffi.Int32, ffi.Int32)>()
+external ffi.Pointer<LcImage> lc_image_create(int width, int height);
 
-/// A longer lived native function, which occupies the thread calling it.
-///
-/// Do not call these kind of native functions in the main isolate. They will
-/// block Dart execution. This will cause dropped frames in Flutter applications.
-/// Instead, call these native functions on a separate isolate.
-@ffi.Native<ffi.IntPtr Function(ffi.IntPtr, ffi.IntPtr)>()
-external int sum_long_running(int a, int b);
+/// Releases a canvas created by lc_image_create. Passing NULL is a no-op.
+@ffi.Native<ffi.Void Function(ffi.Pointer<LcImage>)>()
+external void lc_image_destroy(ffi.Pointer<LcImage> image);
+
+/// Fills the whole canvas with a solid color, packed as 0xAARRGGBB. Stands
+/// in for real scene compositing until the renderer (a later stage) walks a
+/// Scene's layers instead.
+@ffi.Native<ffi.Void Function(ffi.Pointer<LcImage>, ffi.Uint32)>()
+external void lc_image_clear(ffi.Pointer<LcImage> image, int argb);
+
+/// Encodes the canvas as PNG into a newly allocated buffer, written to
+/// `*out_data`/`*out_len`. Returns 0 on success, non-zero on failure. On
+/// success, the caller must release the buffer with lc_buffer_free.
+@ffi.Native<
+  ffi.Int32 Function(
+    ffi.Pointer<LcImage>,
+    ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+    ffi.Pointer<ffi.Size>,
+  )
+>()
+external int lc_image_encode_png(
+  ffi.Pointer<LcImage> image,
+  ffi.Pointer<ffi.Pointer<ffi.Uint8>> out_data,
+  ffi.Pointer<ffi.Size> out_len,
+);
+
+/// Releases a buffer produced by lc_image_encode_png. Passing NULL is a
+/// no-op.
+@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Uint8>)>()
+external void lc_buffer_free(ffi.Pointer<ffi.Uint8> data);
+
+final class LcImage extends ffi.Opaque {}
