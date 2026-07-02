@@ -4,10 +4,10 @@ import '../layer.dart';
 /// How an [ImageLayer]'s source image is fit inside its [Layer.size].
 enum ImageFit { fill, contain, cover, none }
 
-/// A single image, decoded from an [ImageSource] and composited with the
-/// common [Layer] transform/opacity/stacking properties.
+/// A single image, decoded from a [LayerImageSource] and composited with
+/// the common [Layer] transform/opacity/stacking properties.
 class ImageLayer extends Layer {
-  final ImageSource source;
+  final LayerImageSource source;
   final ImageFit fit;
 
   ImageLayer({

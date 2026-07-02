@@ -41,4 +41,117 @@ external int lc_image_encode_png(
 @ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Uint8>)>()
 external void lc_buffer_free(ffi.Pointer<ffi.Uint8> data);
 
+/// Composes a whole scene in one call: creates a `width` x `height` canvas,
+/// paints `layers` onto it in array order, and encodes the result as PNG
+/// into `*out_data`/`*out_len`. Returns 0 on success. On success, the
+/// caller must release the buffer with lc_buffer_free.
+///
+/// The caller (the Dart side) is responsible for resolving stacking order
+/// (Layer.zIndex) into `layers`' array order and dropping invisible layers
+/// before calling this - see scene_desc.h. `layers` may be NULL only if
+/// `layer_count` is 0.
+@ffi.Native<
+  ffi.Int32 Function(
+    ffi.Int32,
+    ffi.Int32,
+    ffi.Pointer<LcLayerDesc>,
+    ffi.Int32,
+    ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+    ffi.Pointer<ffi.Size>,
+  )
+>()
+external int lc_render_scene(
+  int width,
+  int height,
+  ffi.Pointer<LcLayerDesc> layers,
+  int layer_count,
+  ffi.Pointer<ffi.Pointer<ffi.Uint8>> out_data,
+  ffi.Pointer<ffi.Size> out_len,
+);
+
+/// Wire format for a single layer, shared between the public FFI surface
+/// (engine.h) and every backend implementation (backend.h). This is *our*
+/// generic scene description, not tied to any graphics library.
+///
+/// The Dart side is responsible for:
+/// - resolving stacking order (Layer.zIndex) into plain array order,
+/// - dropping invisible layers,
+/// - flattening the common Layer.transform/size/opacity into these fields.
+/// A backend only ever sees a flat array of these and never needs to know
+/// about Scene, Layer, or Dart at all.
+///
+/// Adding a new renderable layer kind means adding a value to LcLayerKind,
+/// adding its dedicated fields below, and teaching a backend's render_layers
+/// to handle the new kind - engine.h's function signature never changes.
+enum LcLayerKind {
+  LC_LAYER_KIND_UNKNOWN(0),
+  LC_LAYER_KIND_RECTANGLE(1);
+
+  final int value;
+  const LcLayerKind(this.value);
+
+  static LcLayerKind fromValue(int value) => switch (value) {
+    0 => LC_LAYER_KIND_UNKNOWN,
+    1 => LC_LAYER_KIND_RECTANGLE,
+    _ => throw ArgumentError('Unknown value for LcLayerKind: $value'),
+  };
+}
+
+final class LcLayerDesc extends ffi.Struct {
+  /// Common properties, shared by every layer kind (mirrors lib/src/model/
+  /// layer.dart and transform.dart).
+  @ffi.Double()
+  external double pos_x;
+
+  @ffi.Double()
+  external double pos_y;
+
+  @ffi.Double()
+  external double width;
+
+  @ffi.Double()
+  external double height;
+
+  /// radians
+  @ffi.Double()
+  external double rotation;
+
+  @ffi.Double()
+  external double scale_x;
+
+  @ffi.Double()
+  external double scale_y;
+
+  /// fractional, 0..1 of width/height
+  @ffi.Double()
+  external double anchor_x;
+
+  @ffi.Double()
+  external double anchor_y;
+
+  /// 0..1
+  @ffi.Double()
+  external double opacity;
+
+  /// LcLayerKind. Backends must ignore kinds they don't
+  /// recognize instead of failing the whole render.
+  @ffi.Int32()
+  external int kind;
+
+  /// RectangleLayer-specific fields (meaningful only when
+  /// kind == LC_LAYER_KIND_RECTANGLE).
+  @ffi.Uint32()
+  external int rect_color_argb;
+
+  /// 0 = fill, 1 = stroke, 2 = fillAndStroke
+  @ffi.Int32()
+  external int rect_paint_style;
+
+  @ffi.Double()
+  external double rect_stroke_width;
+
+  @ffi.Double()
+  external double rect_corner_radius;
+}
+
 final class LcImage extends ffi.Opaque {}
