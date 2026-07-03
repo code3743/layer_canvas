@@ -1,4 +1,5 @@
 import 'color.dart';
+import 'gradient.dart';
 
 /// How a shape's geometry should be painted.
 enum LayerPaintStyle { fill, stroke, fillAndStroke }
@@ -20,25 +21,33 @@ class LayerPaint {
   final LayerPaintStyle style;
   final double strokeWidth;
 
+  /// When set, paints the shape (both fill and stroke) with this gradient
+  /// instead of the solid [color].
+  final Gradient? gradient;
+
   const LayerPaint({
     this.color = Color32.black,
     this.style = LayerPaintStyle.fill,
     this.strokeWidth = 1.0,
+    this.gradient,
   });
 
   LayerPaint copyWith({
     Color32? color,
     LayerPaintStyle? style,
     double? strokeWidth,
+    Gradient? gradient,
   }) {
     return LayerPaint(
       color: color ?? this.color,
       style: style ?? this.style,
       strokeWidth: strokeWidth ?? this.strokeWidth,
+      gradient: gradient ?? this.gradient,
     );
   }
 
   @override
   String toString() =>
-      'LayerPaint(color: $color, style: $style, strokeWidth: $strokeWidth)';
+      'LayerPaint(color: $color, style: $style, '
+      'strokeWidth: $strokeWidth, gradient: $gradient)';
 }

@@ -23,11 +23,24 @@ Scene buildWatermarkScene(
   final panelTop = height - panelMargin - panelHeight;
   final panelWidth = width - panelMargin * 2;
 
+  // A gradient scrim rather than a flat translucent fill - fades from
+  // lighter at the top edge to darker at the bottom, keeping the text
+  // readable over busy photo backgrounds without hiding as much of the
+  // photo through the panel's upper half.
   scene.add(
     RectangleLayer(
       transform: LayerTransform(position: Point2D(panelMargin, panelTop)),
       size: Size2D(panelWidth, panelHeight),
-      paint: const LayerPaint(color: Color32(0x992B2B2B)),
+      paint: const LayerPaint(
+        gradient: LinearGradient(
+          start: Point2D(0, 0),
+          end: Point2D(0, 1),
+          stops: [
+            GradientStop(0, Color32(0x552B2B2B)),
+            GradientStop(1, Color32(0xE62B2B2B)),
+          ],
+        ),
+      ),
       cornerRadius: 18,
     ),
   );

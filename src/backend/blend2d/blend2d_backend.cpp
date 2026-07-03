@@ -200,6 +200,75 @@ constexpr int32_t kPaintStyleFill = 0;
 constexpr int32_t kPaintStyleStroke = 1;
 constexpr int32_t kPaintStyleFillAndStroke = 2;
 
+// Extend modes a gradient LcPaintDesc can request (mirrors
+// lib/src/model/gradient.dart's GradientExtendMode, in the same declared
+// order).
+constexpr BLExtendMode kGradientExtendModes[] = {
+    BL_EXTEND_MODE_PAD, BL_EXTEND_MODE_REPEAT, BL_EXTEND_MODE_REFLECT};
+
+// Builds the fill/stroke style described by `paint` - a solid color or a
+// gradient - as a BLVar so callers can pass it straight to
+// fill_round_rect/stroke_round_rect regardless of which kind it is.
+//
+// Gradient geometry in `paint.values` is fractional (0..1), relative to the
+// painted shape's own local box - denormalized here against `width`/
+// `height`. Because this runs after RenderRectangle has already translated/
+// rotated/scaled `ctx` into that same 0,0..width,height local space (see its
+// pivot transform comment), the gradient inherits the shape's rotation and
+// scale for free, with no extra transform math needed here.
+BLVar BuildPaintStyle(const LcPaintDesc& paint, double width, double height) {
+  if (paint.kind != LC_PAINT_KIND_LINEAR_GRADIENT &&
+      paint.kind != LC_PAINT_KIND_RADIAL_GRADIENT &&
+      paint.kind != LC_PAINT_KIND_CONIC_GRADIENT) {
+    // Unknown kinds fall back to solid, same philosophy as an unrecognized
+    // layer kind elsewhere in this backend - never fail the render.
+    return BLVar(BLRgba32(paint.solid_color_argb));
+  }
+
+  const BLExtendMode extend_mode =
+        (paint.extend_mode >= 0 &&
+         static_cast<size_t>(paint.extend_mode) <
+           (sizeof(kGradientExtendModes) / sizeof(kGradientExtendModes[0])))
+          ? kGradientExtendModes[paint.extend_mode]
+          : BL_EXTEND_MODE_PAD;
+
+  BLGradient gradient;
+  switch (paint.kind) {
+    case LC_PAINT_KIND_LINEAR_GRADIENT: {
+      const BLLinearGradientValues values(
+          paint.values[0] * width, paint.values[1] * height,
+          paint.values[2] * width, paint.values[3] * height);
+      gradient = BLGradient(values, extend_mode);
+      break;
+    }
+    case LC_PAINT_KIND_RADIAL_GRADIENT: {
+      // No focal point support yet - focal defaults to the gradient center.
+      const double cx = paint.values[0] * width;
+      const double cy = paint.values[1] * height;
+      const double r = paint.values[2] * width;
+      const BLRadialGradientValues values(cx, cy, cx, cy, r);
+      gradient = BLGradient(values, extend_mode);
+      break;
+    }
+    default: {  // LC_PAINT_KIND_CONIC_GRADIENT
+      const BLConicGradientValues values(
+          paint.values[0] * width, paint.values[1] * height,
+          paint.values[2]);
+      gradient = BLGradient(values, extend_mode);
+      break;
+    }
+  }
+
+  // LcGradientStop isn't binary-compatible with BLGradientStop (argb32 vs.
+  // rgba64), so stops are copied one at a time rather than assigned in bulk.
+  for (int32_t i = 0; i < paint.stop_count; ++i) {
+    gradient.add_stop(paint.stops[i].offset,
+                       BLRgba32(paint.stops[i].color_argb));
+  }
+
+  return BLVar(std::move(gradient));
+}
+
 void RenderRectangle(BLContext& ctx, const LcLayerDesc& layer) {
   // Pivot (rotate/scale) around the layer's anchor point, expressed as a
   // fraction of its own size - same semantics as LayerTransform.anchor in
@@ -214,16 +283,17 @@ void RenderRectangle(BLContext& ctx, const LcLayerDesc& layer) {
 
   BLRoundRect shape(0, 0, layer.width, layer.height,
                      layer.rect_corner_radius);
-  BLRgba32 color(layer.rect_color_argb);
+  const BLVar style =
+      BuildPaintStyle(layer.rect_paint, layer.width, layer.height);
 
   if (layer.rect_paint_style == kPaintStyleFill ||
       layer.rect_paint_style == kPaintStyleFillAndStroke) {
-    ctx.fill_round_rect(shape, color);
+    ctx.fill_round_rect(shape, style);
   }
   if (layer.rect_paint_style == kPaintStyleStroke ||
       layer.rect_paint_style == kPaintStyleFillAndStroke) {
     ctx.set_stroke_width(layer.rect_stroke_width);
-    ctx.stroke_round_rect(shape, color);
+    ctx.stroke_round_rect(shape, style);
   }
 
   ctx.restore();
@@ -408,6 +478,109 @@ void RenderImage(BLContext& ctx, const LcLayerDesc& layer) {
   ctx.restore();
 }
 
+// PathLayer command bytes (mirrors lib/src/model/path.dart's PathCommand,
+// scene_desc.h's LcPathCommand).
+constexpr uint8_t kPathCommandMoveTo = 0;
+constexpr uint8_t kPathCommandLineTo = 1;
+constexpr uint8_t kPathCommandQuadTo = 2;
+constexpr uint8_t kPathCommandCubicTo = 3;
+constexpr uint8_t kPathCommandClose = 4;
+constexpr uint8_t kPathCommandArcTo = 5;
+
+// Fill rules a PathLayer can request (mirrors lib/src/model/path.dart's
+// FillRule, in the same declared order).
+constexpr BLFillRule kFillRules[] = {BL_FILL_RULE_NON_ZERO,
+                                      BL_FILL_RULE_EVEN_ODD};
+
+// Walks layer.path_commands/path_coords (see LcPathCommand in scene_desc.h
+// for how many coordinates each command consumes) into a BLPath. An
+// unrecognized command byte is skipped rather than failing the whole
+// render, same philosophy as an unrecognized layer kind.
+BLPath BuildPath(const LcLayerDesc& layer) {
+  BLPath path;
+  int32_t c = 0;  // index into layer.path_coords.
+  for (int32_t i = 0; i < layer.path_command_count; ++i) {
+    switch (layer.path_commands[i]) {
+      case kPathCommandMoveTo:
+        path.move_to(layer.path_coords[c], layer.path_coords[c + 1]);
+        c += 2;
+        break;
+      case kPathCommandLineTo:
+        path.line_to(layer.path_coords[c], layer.path_coords[c + 1]);
+        c += 2;
+        break;
+      case kPathCommandQuadTo:
+        path.quad_to(layer.path_coords[c], layer.path_coords[c + 1],
+                      layer.path_coords[c + 2], layer.path_coords[c + 3]);
+        c += 4;
+        break;
+      case kPathCommandCubicTo:
+        path.cubic_to(layer.path_coords[c], layer.path_coords[c + 1],
+                       layer.path_coords[c + 2], layer.path_coords[c + 3],
+                       layer.path_coords[c + 4], layer.path_coords[c + 5]);
+        c += 6;
+        break;
+      case kPathCommandArcTo: {
+        // Same endpoint parameterization as SVG's `A`/`a` path command -
+        // elliptic_arc_to() implements that exact spec algorithm, so no
+        // conversion to Blend2D's own center-parameterized arc_to() is
+        // needed here.
+        const double rx = layer.path_coords[c];
+        const double ry = layer.path_coords[c + 1];
+        const double x_axis_rotation = layer.path_coords[c + 2];
+        const bool large_arc = layer.path_coords[c + 3] != 0.0;
+        const bool sweep = layer.path_coords[c + 4] != 0.0;
+        const double x = layer.path_coords[c + 5];
+        const double y = layer.path_coords[c + 6];
+        path.elliptic_arc_to(rx, ry, x_axis_rotation, large_arc, sweep, x, y);
+        c += 7;
+        break;
+      }
+      case kPathCommandClose:
+        path.close();
+        break;
+      default:
+        break;
+    }
+  }
+  return path;
+}
+
+void RenderPath(BLContext& ctx, const LcLayerDesc& layer) {
+  // Same pivot transform as RenderRectangle - see the comment there.
+  ctx.save();
+  ctx.translate(layer.pos_x, layer.pos_y);
+  ctx.translate(layer.anchor_x * layer.width, layer.anchor_y * layer.height);
+  ctx.rotate(layer.rotation);
+  ctx.scale(layer.scale_x, layer.scale_y);
+  ctx.translate(-layer.anchor_x * layer.width, -layer.anchor_y * layer.height);
+  ctx.set_global_alpha(layer.opacity);
+
+  const BLPath path = BuildPath(layer);
+  const BLVar style =
+      BuildPaintStyle(layer.path_paint, layer.width, layer.height);
+
+    const BLFillRule fill_rule =
+      (layer.path_fill_rule >= 0 &&
+       static_cast<size_t>(layer.path_fill_rule) <
+         (sizeof(kFillRules) / sizeof(kFillRules[0])))
+        ? kFillRules[layer.path_fill_rule]
+        : BL_FILL_RULE_NON_ZERO;
+
+  if (layer.path_paint_style == kPaintStyleFill ||
+      layer.path_paint_style == kPaintStyleFillAndStroke) {
+    ctx.set_fill_rule(fill_rule);
+    ctx.fill_path(path, style);
+  }
+  if (layer.path_paint_style == kPaintStyleStroke ||
+      layer.path_paint_style == kPaintStyleFillAndStroke) {
+    ctx.set_stroke_width(layer.path_stroke_width);
+    ctx.stroke_path(path, style);
+  }
+
+  ctx.restore();
+}
+
 int32_t RenderLayers(LcBackendImage* image, const LcLayerDesc* layers,
                       int32_t layer_count) {
   auto* wrapper = reinterpret_cast<Blend2DImage*>(image);
@@ -429,6 +602,9 @@ int32_t RenderLayers(LcBackendImage* image, const LcLayerDesc* layers,
         break;
       case LC_LAYER_KIND_IMAGE:
         RenderImage(ctx, layer);
+        break;
+      case LC_LAYER_KIND_PATH:
+        RenderPath(ctx, layer);
         break;
       default:
         // Unknown/unsupported kinds are skipped rather than failing the
