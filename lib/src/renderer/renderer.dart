@@ -6,7 +6,10 @@ import 'package:ffi/ffi.dart';
 
 import '../../layer_canvas_bindings_generated.dart' as bindings;
 import '../ffi/layer_descriptor.dart';
+import '../model/geometry.dart';
+import '../model/layers/image_layer.dart';
 import '../model/scene.dart';
+import '../model/transform.dart';
 import 'scene_flattener.dart';
 
 /// Renders a [Scene] to PNG bytes using the native Blend2D compositing engine.
@@ -37,7 +40,23 @@ class Renderer {
   }
 
   Uint8List _renderSync(Scene scene) {
-    final renderable = flattenScene(scene.layers);
+    final background = scene.background;
+    final renderable = <ResolvedLayer>[
+      // Painted first (bottom of the stack), covering the whole canvas,
+      // regardless of any layer's zIndex - matches Scene.background's doc
+      // comment ("painted before any layer").
+      if (background != null)
+        ResolvedLayer(
+          ImageLayer(
+            source: background,
+            size: Size2D(scene.width.toDouble(), scene.height.toDouble()),
+            fit: ImageFit.cover,
+          ),
+          const LayerTransform(),
+          1.0,
+        ),
+      ...flattenScene(scene.layers),
+    ];
 
     final nativeLayers = calloc<bindings.LcLayerDesc>(renderable.length);
     // Native buffers allocated for ImageLayer bytes (see
