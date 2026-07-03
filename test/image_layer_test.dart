@@ -89,4 +89,69 @@ void main() {
       expect(bytes.take(_pngSignature.length).toList(), _pngSignature);
     });
   });
+
+  group('Scene.background', () {
+    const renderer = Renderer();
+    late Uint8List sourcePng;
+
+    setUpAll(() async {
+      final scene = Scene(width: 16, height: 12)
+        ..add(
+          RectangleLayer(
+            size: const Size2D(16, 12),
+            paint: const LayerPaint(color: Color32.fromRGB(40, 120, 200)),
+          ),
+        );
+      sourcePng = await renderer.render(scene);
+    });
+
+    test('paints behind every layer, producing a different result than '
+        'an empty scene', () async {
+      final withoutBackground = await renderer.render(
+        Scene(width: 16, height: 12),
+      );
+      final withBackground = await renderer.render(
+        Scene(
+          width: 16,
+          height: 12,
+          background: LayerImageSource.memory(sourcePng),
+        ),
+      );
+
+      expect(withBackground, isNot(equals(withoutBackground)));
+      expect(withBackground.take(_pngSignature.length).toList(), _pngSignature);
+    });
+
+    test('other layers still composite on top of it', () async {
+      final scene = Scene(
+        width: 16,
+        height: 12,
+        background: LayerImageSource.memory(sourcePng),
+      )..add(
+          TextLayer(
+            text: 'x',
+            size: const Size2D(16, 12),
+            color: Color32.white,
+          ),
+        );
+
+      final bytes = await renderer.render(scene);
+
+      expect(bytes.take(_pngSignature.length).toList(), _pngSignature);
+    });
+
+    test('a malformed background never fails the whole render', () async {
+      final scene = Scene(
+        width: 16,
+        height: 12,
+        background: LayerImageSource.memory(
+          Uint8List.fromList([1, 2, 3]),
+        ),
+      );
+
+      final bytes = await renderer.render(scene);
+
+      expect(bytes.take(_pngSignature.length).toList(), _pngSignature);
+    });
+  });
 }
