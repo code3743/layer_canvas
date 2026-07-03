@@ -18,6 +18,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # layer_canvas compiles Blend2D from C++ source via a native build
+      # hook (hook/build.dart) using package:native_toolchain_c, which on
+      # Linux only looks for `clang` (not gcc) to build native assets.
+      # ubuntu-latest does not guarantee clang is preinstalled, so install
+      # it explicitly or `dart test` fails before running any tests.
+      - name: Install native build toolchain
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq clang cmake
+
       # Note: This workflow uses the latest stable version of the Dart SDK.
       # You can specify other versions if desired, see documentation here:
       # https://github.com/dart-lang/setup-dart/blob/main/README.md
