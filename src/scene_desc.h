@@ -20,7 +20,18 @@
 typedef enum {
   LC_LAYER_KIND_UNKNOWN = 0,
   LC_LAYER_KIND_RECTANGLE = 1,
+  LC_LAYER_KIND_TEXT = 2,
 } LcLayerKind;
+
+// Maximum size, in UTF-8 bytes, of a TextLayer's `text` field below. Text
+// longer than this is truncated on the Dart side before it ever crosses the
+// FFI boundary — see lib/src/ffi/layer_descriptor.dart.
+#define LC_TEXT_MAX_BYTES 256
+
+// Maximum size, in UTF-8 bytes, of the `font_family` field below. Font
+// family names are short identifiers (not display text), so this cap is
+// much smaller than LC_TEXT_MAX_BYTES.
+#define LC_FONT_FAMILY_MAX_BYTES 64
 
 typedef struct {
   // Common properties, shared by every layer kind (mirrors lib/src/model/
@@ -45,6 +56,24 @@ typedef struct {
   int32_t rect_paint_style;  // 0 = fill, 1 = stroke, 2 = fillAndStroke
   double rect_stroke_width;
   double rect_corner_radius;
+
+  // TextLayer-specific fields (meaningful only when kind ==
+  // LC_LAYER_KIND_TEXT). Mirrors lib/src/model/layers/text_layer.dart.
+  uint8_t text[LC_TEXT_MAX_BYTES];  // UTF-8, NOT null-terminated.
+  int32_t text_length;              // valid bytes in `text`, 0..LC_TEXT_MAX_BYTES.
+  double text_font_size;
+  uint32_t text_color_argb;
+  int32_t text_align;   // 0 = left, 1 = center, 2 = right.
+  int32_t text_weight;  // 100..900 (CSS/OpenType scale); backend buckets this
+                         // to whichever embedded font face is closest.
+
+  // Custom font lookup (meaningful only when kind == LC_LAYER_KIND_TEXT).
+  // Names a font previously registered via lc_font_register (see
+  // engine.h). When empty (font_family_length == 0) or not found in the
+  // registry, the backend falls back to its built-in embedded font,
+  // bucketed by text_weight.
+  uint8_t font_family[LC_FONT_FAMILY_MAX_BYTES];  // UTF-8, NOT null-terminated.
+  int32_t font_family_length;                      // valid bytes in `font_family`.
 } LcLayerDesc;
 
 #endif  // LAYER_CANVAS_SCENE_DESC_H_
