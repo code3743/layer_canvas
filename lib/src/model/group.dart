@@ -3,10 +3,12 @@ import 'layer.dart';
 /// A composite [Layer] that groups other layers so they can share a single
 /// [Layer.transform] and [Layer.opacity], and be reordered together.
 ///
-/// A [Group] composites exactly like any other layer from the engine's
-/// point of view — its [type] is `'group'` and [properties] simply exposes
-/// [children] — so grouping requires no special-casing in [Scene] or the
-/// renderer core. Groups can be nested arbitrarily.
+/// The native engine never sees a [Group] — before a [Scene] crosses the
+/// FFI boundary, the renderer recursively expands every group into its
+/// concrete descendants, composing the group's transform/opacity into each
+/// one (see `scene_flattener.dart`). `scene_desc.h` and the Blend2D backend
+/// need no changes to support grouping, and Groups can be nested
+/// arbitrarily.
 class Group extends Layer {
   final List<Layer> children;
 

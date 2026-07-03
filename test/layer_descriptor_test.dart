@@ -32,6 +32,8 @@ void main() {
           align: TextAlignment.center,
           fontWeight: TextWeight.bold,
         ),
+        transform: const LayerTransform(),
+        opacity: 1.0,
         ownedBuffers: [],
       );
 
@@ -48,7 +50,13 @@ void main() {
     test('truncates text longer than LC_TEXT_MAX_BYTES', () {
       final text = 'a' * (bindings.LC_TEXT_MAX_BYTES + 50);
 
-      fillNativeLayerDesc(desc, TextLayer(text: text), ownedBuffers: []);
+      fillNativeLayerDesc(
+        desc,
+        TextLayer(text: text),
+        transform: const LayerTransform(),
+        opacity: 1.0,
+        ownedBuffers: [],
+      );
 
       expect(desc.text_length, bindings.LC_TEXT_MAX_BYTES);
       expect(_readText(desc), utf8.encode(text.substring(
@@ -63,7 +71,13 @@ void main() {
       // byte so the boundary falls in the middle of a '°' character.
       final text = 'x${'°' * 200}'; // 1 + 400 = 401 bytes.
 
-      fillNativeLayerDesc(desc, TextLayer(text: text), ownedBuffers: []);
+      fillNativeLayerDesc(
+        desc,
+        TextLayer(text: text),
+        transform: const LayerTransform(),
+        opacity: 1.0,
+        ownedBuffers: [],
+      );
 
       final bytes = _readText(desc);
       expect(bytes.length, lessThanOrEqualTo(bindings.LC_TEXT_MAX_BYTES));
@@ -111,6 +125,8 @@ void main() {
           source: LayerImageSource.memory(pngBytes),
           fit: ImageFit.cover,
         ),
+        transform: const LayerTransform(),
+        opacity: 1.0,
         ownedBuffers: ownedBuffers,
       );
 
@@ -135,6 +151,8 @@ void main() {
       final handled = fillNativeLayerDesc(
         desc,
         ImageLayer(source: LayerImageSource.file(tempFile.path)),
+        transform: const LayerTransform(),
+        opacity: 1.0,
         ownedBuffers: ownedBuffers,
       );
 
