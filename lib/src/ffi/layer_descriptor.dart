@@ -12,8 +12,14 @@ import '../model/layer.dart';
 import '../model/layers/image_layer.dart';
 import '../model/layers/rectangle_layer.dart';
 import '../model/layers/text_layer.dart';
+import '../model/transform.dart';
 
 /// Fills a native [bindings.LcLayerDesc] slot from a Dart [Layer].
+///
+/// [transform] and [opacity] are the layer's *effective* (world-space)
+/// values — already composed with every ancestor [Group] by
+/// [flattenScene][flatten], not necessarily `layer.transform`/`layer.opacity`
+/// directly. [transform] is always in canonical form (`anchor` is `(0,0)`).
 ///
 /// An [ImageLayer] allocates a native buffer for its encoded bytes and
 /// appends it to [ownedBuffers] — unlike `text`/`font_family`, image bytes
@@ -24,15 +30,17 @@ import '../model/layers/text_layer.dart';
 /// Returns `true` if the native engine has a renderer for this layer's
 /// runtime type, `false` otherwise. Callers should not count a `false`
 /// layer towards the layer count passed to `lc_render_scene` - this is
-/// what lets the Dart model support layer kinds (Group, any future
-/// CustomLayer...) before the native side implements them, without the
-/// render call failing.
+/// what lets the Dart model support layer kinds (any future CustomLayer...)
+/// before the native side implements them, without the render call failing.
+///
+/// [flatten]: package:layer_canvas/src/renderer/scene_flattener.dart
 bool fillNativeLayerDesc(
   bindings.LcLayerDesc desc,
   Layer layer, {
+  required LayerTransform transform,
+  required double opacity,
   required List<Pointer<Uint8>> ownedBuffers,
 }) {
-  final transform = layer.transform;
   final size = layer.size ?? Size2D.zero;
 
   desc.pos_x = transform.position.x;
@@ -44,7 +52,7 @@ bool fillNativeLayerDesc(
   desc.scale_y = transform.scale.y;
   desc.anchor_x = transform.anchor.x;
   desc.anchor_y = transform.anchor.y;
-  desc.opacity = layer.opacity;
+  desc.opacity = opacity;
 
   if (layer is RectangleLayer) {
     desc.kind = bindings.LcLayerKind.LC_LAYER_KIND_RECTANGLE.value;
