@@ -1,6 +1,7 @@
 import 'package:native_toolchain_c/native_toolchain_c.dart';
 import 'package:logging/logging.dart';
 import 'package:hooks/hooks.dart';
+import 'package:code_assets/code_assets.dart';
 
 // Blend2D is vendored as a git submodule (third_party/blend2d) and compiled
 // directly into this package's native library alongside our own engine
@@ -137,11 +138,26 @@ const _blend2dSources = [
 void main(List<String> args) async {
   await build(args, (input, output) async {
     final packageName = input.packageName;
+    // Detect x86/x86_64 targets to enable SSE4.2 SIMD sources and flags.
+    // buildCodeAssets guards code so accessing .code doesn't throw when the
+    // hook is invoked for a non-code asset type.
+    final isX86 = input.config.buildCodeAssets &&
+        (input.config.code.targetArchitecture == Architecture.x64 ||
+            input.config.code.targetArchitecture == Architecture.ia32);
+    // c++_static and -lm are NDK-specific workarounds: Flutter's Android linker
+    // namespace (clns-9) doesn't expose libc++_shared.so, and c++_static pulls
+    // in libm symbols without adding a DT_NEEDED entry for libm. On other
+    // platforms the toolchain handles C++ runtime linkage automatically.
+    final isAndroid = input.config.buildCodeAssets &&
+        input.config.code.targetOS == OS.android;
+
     final cbuilder = CBuilder.library(
       name: packageName,
       assetName: '${packageName}_bindings_generated.dart',
       language: Language.cpp,
       std: 'c++17',
+      cppLinkStdLib: isAndroid ? 'c++_static' : null,
+      libraries: isAndroid ? ['m'] : [],
       defines: {
         // Compile Blend2D without JIT pipeline generation (and therefore
         // without AsmJit): keeps the dependency graph to just Blend2D,
@@ -153,12 +169,57 @@ void main(List<String> args) async {
         // its own shared library, so its symbols don't need dllexport
         // visibility.
         'BL_STATIC': null,
+        // Disable thread_local in Blend2D's UniqueIdGenerator. Without this
+        // flag, Blend2D emits a PT_TLS segment into the .so. On Android,
+        // dlopen()-ing a library with a TLS segment causes bionic's linker to
+        // try to allocate TLS slots for every already-running thread under
+        // g_dl_mutex — which deadlocks because Flutter creates 5+ threads
+        // before Dart loads native assets. The no-TLS path falls back to a
+        // simple atomic counter, which is correct and plenty fast enough.
+        'BL_BUILD_NO_TLS': null,
+        // The Android NDK x86_64 baseline defines __SSE4_2__ (and __SSSE3__)
+        // unconditionally, which causes Blend2D's dispatch code in checksum.cpp
+        // and otglyf.cpp to reference the SSE2/SSE4.2 SIMD variants. We mirror
+        // CMake's BL_BUILD_OPT_* defines so those declarations are visible, and
+        // include the matching source files below.
+        // On the host (Linux/macOS), the Clang baseline is SSE2 only — those
+        // macros are not defined, no dispatch references are emitted, and no
+        // extra sources or defines are needed.
+        // BL_BUILD_OPT_SSE2: needed on all x86/x86_64 — __SSE2__ is always
+        // defined there, so checksum.cpp and others reference adler32_update_sse2
+        // regardless of platform. The SSE2 source files are already in
+        // _blend2dSources unconditionally.
+        if (isX86) 'BL_BUILD_OPT_SSE2': null,
+        // BL_BUILD_OPT_SSE4_2: for all x86/x86_64. The Android NDK x86_64
+        // baseline and most host Clang builds both define __SSE4_2__ (Clang
+        // targets the native CPU on the host), which triggers the SSE4.2
+        // dispatch references in checksum.cpp and otglyf.cpp.
+        if (isX86) 'BL_BUILD_OPT_SSE4_2': null,
       },
       includes: ['third_party/blend2d'],
       sources: [
         'src/engine.cpp',
         'src/backend/blend2d/blend2d_backend.cpp',
         ..._blend2dSources,
+        // x86/x86_64 SIMD sources required when BL_BUILD_OPT_SSE4_2 is set.
+        // Defining BL_BUILD_OPT_SSE4_2 cascades (via api-internal_p.h) to
+        // also define BL_BUILD_OPT_SSSE3, which causes dispatch code in
+        // pixelconverter.cpp and otglyf.cpp to reference these functions.
+        // The NDK x86_64 baseline already defines __SSSE3__ and __SSE4_2__,
+        // so all these files compile without extra flags — except
+        // checksum_sse4_2.cpp which also needs __PCLMUL__, handled via the
+        // wrapper below that applies the pclmul target attribute per-function.
+        // pixelconverter_ssse3.cpp needs __SSSE3__ to emit function bodies.
+        // The NDK x86_64 baseline defines it; host Clang (baseline = SSE2)
+        // does not. The wrapper applies target("ssse3") per-function so the
+        // file compiles correctly on both without global -mssse3.
+        // SSSE3/SSE4.2 wrapper files: compile SIMD source files with the
+        // correct per-function target attribute so neither a global -mssse3 /
+        // -msse4.2 flag nor the compiler's baseline defines are required.
+        // blend2d_x86_sse4_2.cpp wraps both otglyf_sse4_2.cpp (sse4.2) and
+        // checksum_sse4_2.cpp (sse4.2+pclmul).
+        if (isX86) 'src/blend2d_x86_ssse3.cpp',
+        if (isX86) 'src/blend2d_x86_sse4_2.cpp',
       ],
     );
     await cbuilder.run(

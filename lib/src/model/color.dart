@@ -1,6 +1,14 @@
-/// An immutable 32-bit ARGB color, backend-agnostic.
+/// An immutable 32-bit color in ARGB order.
+///
+/// Named `Color32` rather than `Color` to avoid shadowing `dart:ui`'s `Color`
+/// when this package is imported alongside `material.dart`.
+///
+/// ```dart
+/// const red = Color32.fromRGB(255, 0, 0);
+/// const semiBlack = Color32(0x80000000); // 50% transparent black
+/// ```
 class Color32 {
-  /// Packed as 0xAARRGGBB.
+  /// Packed as `0xAARRGGBB`.
   final int value;
 
   const Color32(this.value);

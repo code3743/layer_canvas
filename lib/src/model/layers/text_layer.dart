@@ -1,14 +1,13 @@
 import '../color.dart';
 import '../layer.dart';
 
+/// Horizontal alignment of text within its bounding box.
 enum TextAlignment { left, center, right }
 
-/// A simplified, backend-agnostic font weight (mirrors the standard
-/// 100-900 CSS/OpenType weight scale).
+/// Font weight on the standard 100–900 CSS/OpenType scale.
 ///
-/// Named `TextWeight` rather than `FontWeight` on purpose: `dart:ui` (and
-/// therefore every Flutter app) already exports a `FontWeight`, and this
-/// package is meant to be imported unprefixed alongside `material.dart`.
+/// Named `TextWeight` rather than `FontWeight` to avoid shadowing `dart:ui`'s
+/// `FontWeight` when imported alongside `material.dart`.
 class TextWeight {
   final int value;
 
@@ -26,7 +25,11 @@ class TextWeight {
   String toString() => 'TextWeight($value)';
 }
 
-/// A run of text laid out and painted as a single layer.
+/// A run of styled text rendered as a layer.
+///
+/// When no [size] is given, the native backend uses the laid-out text bounds
+/// as the intrinsic size. [fontFamily] falls back to the backend's default
+/// system font when `null`.
 class TextLayer extends Layer {
   final String text;
   final String? fontFamily;

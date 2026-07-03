@@ -5,22 +5,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#include <cstdio>
-#include <dlfcn.h>
-typedef int (*LcAndroidLogPrintFunc)(int, const char*, const char*, ...);
-static LcAndroidLogPrintFunc lc_get_android_log_print() {
-  static LcAndroidLogPrintFunc fn = reinterpret_cast<LcAndroidLogPrintFunc>(
-      dlsym(RTLD_DEFAULT, "__android_log_print"));
-  return fn;
-}
-#define LC_LOG(msg) \
-  do {              \
-    LcAndroidLogPrintFunc log_fn = lc_get_android_log_print(); \
-    if (log_fn) log_fn(6, "LC_TRACE", "%s", msg); \
-    fprintf(stderr, "LC_TRACE: %s\n", msg); \
-    fflush(stderr); \
-  } while (0)
-
 namespace {
 
 // Owns the one piece of Blend2D state a canvas needs. Kept separate from
@@ -31,14 +15,8 @@ struct Blend2DImage {
 };
 
 LcBackendImage* Create(int32_t width, int32_t height) {
-  LC_LOG("Create: entered");
-  LC_LOG("Create: calling bl_runtime_init manually");
-  bl_runtime_init();
-  LC_LOG("Create: bl_runtime_init returned");
   auto* wrapper = new Blend2DImage();
-  LC_LOG("Create: allocated wrapper, calling BLImage::create");
   BLResult result = wrapper->image.create(width, height, BL_FORMAT_PRGB32);
-  LC_LOG("Create: BLImage::create returned");
   if (result != BL_SUCCESS) {
     delete wrapper;
     return nullptr;

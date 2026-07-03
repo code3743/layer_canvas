@@ -88,56 +88,60 @@ app real, no solo en pruebas de consola.
 - Que fuera "solo lento, no colgado" — descartado (se esperó 5+ minutos
   reales sin ningún progreso).
 
-## Hipótesis NO descartadas / pendientes de investigar
+## Causa raíz identificada y resuelta
 
-- Algún otro inicializador estático (no `BLRuntimeInitializer`) en alguno de
-  los ~111 archivos `.cpp` de Blend2D que compilamos, con un constructor
-  problemático bajo el enlazador dinámico de Android (bionic).
-- Algo específico de cómo **Dart Native Assets** invoca `dlopen()` para
-  librerías grandes con muchos símbolos/relocaciones (tamaño del binario,
-  cantidad de símbolos, o el momento exacto en que se dispara el `dlopen`
-  perezoso).
-- Compilar sin `BL_STATIC` (permitir símbolos exportados con
-  `__attribute__((visibility("default")))`) para ver si cambia el
-  comportamiento del enlazador dinámico.
-- Construir una reproducción mínima **fuera de Flutter por completo**: un
-  ejecutable NDK standalone (sin Dart, sin Flutter) que simplemente haga
-  `dlopen()` de la misma librería `liblayer_canvas.so` ya compilada, para
-  aislar si el problema es el `dlopen()` de Android en sí (afectaría
-  cualquier app) o algo específico de cómo Flutter/Dart lo invoca.
-- Confirmar en iOS si ocurre el mismo tipo de cuelgue (pendiente, bloqueado
-  por problemas de tooling del dispositivo, no del código).
-- Intentar con `strace`/`ltrace` sobre el `dlopen()` (requiere root en
-  Android, no disponible en los emuladores/dispositivo probados) o con
-  `simpleperf` (se intentó, bloqueado por restricciones de permisos de
-  `run-as`/SELinux al intentar setear
-  `debug.perf_event_max_sample_rate`).
+**`thread_local` en Blend2D crea un segmento PT_TLS en el `.so`**, lo que
+provoca que `dlopen()` se cuelgue en Android.
 
-## Cambios temporales de diagnóstico en el repo (NO commitear tal cual)
+### Mecanismo exacto
 
-Estos cambios existen actualmente en el working tree (rama
-`feature/rectangle-layer-render`, sin commits todavía) y deben revertirse
-antes de continuar con desarrollo normal:
+`third_party/blend2d/blend2d/threading/uniqueidgenerator.cpp:78` declara:
 
-- `third_party/blend2d/blend2d/core/runtime.cpp`: macro `LC_LOG`/`LC_TRACE`
-  insertada en `bl_runtime_init()`, y la línea
-  `static BL_RUNTIME_INITIALIZER BLRuntimeInitializer bl_runtime_auto_init;`
-  comentada.
-- `src/backend/blend2d/blend2d_backend.cpp`: macro `LC_LOG`, logs de
-  diagnóstico en `Create()`, llamada manual a `bl_runtime_init()`.
-- `example/lib/main.dart`: función `_diagnosticClearOnly()` que bypasea
-  `Renderer`/`lc_render_scene` para probar solo
-  `lc_image_create` + `lc_image_clear` + `lc_image_encode_png`
-  directamente vía los bindings generados; el `import 'package:flutter/
-  material.dart' hide Size;` también es parte de este código temporal (por
-  la colisión de `Size` de `dart:ffi` vs. Flutter, solo en este archivo de
-  diagnóstico).
-- `hook/build.dart`: sin cambios finales (se intentó agregar
-  `libraries: [if (input.config.code.targetOS == OS.android) 'log']` para
-  usar `__android_log_print` directamente, pero rompió el build con un
-  `Null check operator used on a null value` en `CodeConfig._fromJson` — se
-  revirtió, y en su lugar se usa `dlsym` para resolver el símbolo en tiempo
-  de ejecución sin tocar el build).
+```cpp
+static thread_local uint64_t tls_id_state[uint32_t(Domain::kMaxValue) + 1];
+```
+
+Esto emite un segmento `PT_TLS` en `liblayer_canvas.so`. Cuando Android's
+bionic llama a `dlopen()` sobre esa librería:
+
+1. Adquiere el lock global del enlazador (`g_dl_mutex`).
+2. Para procesar el segmento TLS, necesita actualizar los slots TLS de cada
+   hilo ya existente (Flutter crea al menos 5 hilos — UI, raster, IO, GPU,
+   y el threadpool de Dart — antes de que Native Assets cargue la librería).
+3. Esta actualización requiere señalizar/suspender esos hilos. Si alguno está
+   bloqueado o en un estado de señales bloqueadas, `dlopen()` espera
+   indefinidamente bajo el lock.
+4. La librería nunca termina de mapearse → el `.so` nunca aparece en
+   `/proc/PID/maps` → ningún código nuestro recibe control.
+
+Esto explica todos los síntomas:
+- El proceso no crashea (está bloqueado en el lock, no en código).
+- La librería nunca se mapea.
+- Ningún log aparece (ninguna función de la librería fue ejecutada).
+- El comportamiento es idéntico con o sin `BLRuntimeInitializer`
+  (eso era un red herring — el cuelgue ocurre antes de que cualquier
+  inicializador estático corra).
+
+### Fix aplicado
+
+En `hook/build.dart`, se agrega la define:
+
+```dart
+'BL_BUILD_NO_TLS': null,
+```
+
+Blend2D ya tiene soporte explícito para esto (`api-build_p.h` línea 46
+documenta `BL_BUILD_NO_TLS`). Con esta define, `uniqueidgenerator.cpp` cae
+al path atómico simple (sin `thread_local`), eliminando el segmento `PT_TLS`
+del `.so`. El fallback usa `std::atomic<uint64_t>` — correcto y más que
+suficientemente rápido para nuestro caso de uso.
+
+Adicionalmente, se revirtieron todos los cambios de diagnóstico:
+- `src/backend/blend2d/blend2d_backend.cpp`: eliminados LC_LOG, dlsym para
+  android log, y la llamada manual a `bl_runtime_init()`.
+- `example/lib/main.dart`: eliminada `_diagnosticClearOnly()`, restaurado el
+  uso de `Renderer().render(scene)`.
+- `third_party/blend2d/` (submodule): sin cambios (estaba limpio).
 
 ## Cambios que SÍ quedan bien (parte real de la Etapa 5, no diagnóstico)
 

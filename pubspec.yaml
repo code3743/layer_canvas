@@ -1,5 +1,8 @@
 name: layer_canvas
-description: "A new Dart FFI package project."
+description: >-
+  High-performance 2D compositing engine backed by Blend2D via Dart FFI.
+  Compose typed Layers into a Scene and render to PNG on Android, iOS,
+  macOS, Linux and Windows at native speed.
 version: 0.0.1
 
 environment:
@@ -13,6 +16,7 @@ dependencies:
   native_toolchain_c: ^0.17.4
 
 dev_dependencies:
+  benchmark_harness: ^2.3.0
   ffigen: ^20.1.1
   flutter_lints: ^6.0.0
   test: ^1.28.0
