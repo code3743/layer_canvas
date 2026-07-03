@@ -5,8 +5,7 @@
 import 'dart:ffi' as ffi;
 
 /// Creates a blank, fully transparent canvas of `width` x `height` pixels.
-/// Returns NULL if `width`/`height` are not positive or on allocation
-/// failure.
+/// Returns NULL if `width`/`height` are not positive or on allocation failure.
 @ffi.Native<ffi.Pointer<LcImage> Function(ffi.Int32, ffi.Int32)>()
 external ffi.Pointer<LcImage> lc_image_create(int width, int height);
 
@@ -14,9 +13,7 @@ external ffi.Pointer<LcImage> lc_image_create(int width, int height);
 @ffi.Native<ffi.Void Function(ffi.Pointer<LcImage>)>()
 external void lc_image_destroy(ffi.Pointer<LcImage> image);
 
-/// Fills the whole canvas with a solid color, packed as 0xAARRGGBB. Stands
-/// in for real scene compositing until the renderer (a later stage) walks a
-/// Scene's layers instead.
+/// Fills the whole canvas with a solid ARGB color (0xAARRGGBB).
 @ffi.Native<ffi.Void Function(ffi.Pointer<LcImage>, ffi.Uint32)>()
 external void lc_image_clear(ffi.Pointer<LcImage> image, int argb);
 
@@ -69,6 +66,26 @@ external int lc_render_scene(
   ffi.Pointer<ffi.Size> out_len,
 );
 
+/// Registers `data_size` bytes of font data (TTF/OTF) under `name`, so any
+/// TextLayer whose fontFamily equals `name` renders with it instead of the
+/// backend's built-in default. Registration is global and persists for the
+/// lifetime of the process (or until lc_font_unregister is called) — it is
+/// not tied to any single Scene or render call. `data` is copied; the caller
+/// may free it as soon as this function returns. Returns 0 on success.
+@ffi.Native<
+  ffi.Int32 Function(ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Uint8>, ffi.Size)
+>()
+external int lc_font_register(
+  ffi.Pointer<ffi.Char> name,
+  ffi.Pointer<ffi.Uint8> data,
+  int data_size,
+);
+
+/// Removes a font previously registered under `name`. Returns 0 if found and
+/// removed, 1 if no font was registered under that name.
+@ffi.Native<ffi.Int32 Function(ffi.Pointer<ffi.Char>)>()
+external int lc_font_unregister(ffi.Pointer<ffi.Char> name);
+
 /// Wire format for a single layer, shared between the public FFI surface
 /// (engine.h) and every backend implementation (backend.h). This is *our*
 /// generic scene description, not tied to any graphics library.
@@ -85,7 +102,8 @@ external int lc_render_scene(
 /// to handle the new kind - engine.h's function signature never changes.
 enum LcLayerKind {
   LC_LAYER_KIND_UNKNOWN(0),
-  LC_LAYER_KIND_RECTANGLE(1);
+  LC_LAYER_KIND_RECTANGLE(1),
+  LC_LAYER_KIND_TEXT(2);
 
   final int value;
   const LcLayerKind(this.value);
@@ -93,6 +111,7 @@ enum LcLayerKind {
   static LcLayerKind fromValue(int value) => switch (value) {
     0 => LC_LAYER_KIND_UNKNOWN,
     1 => LC_LAYER_KIND_RECTANGLE,
+    2 => LC_LAYER_KIND_TEXT,
     _ => throw ArgumentError('Unknown value for LcLayerKind: $value'),
   };
 }
@@ -152,6 +171,40 @@ final class LcLayerDesc extends ffi.Struct {
 
   @ffi.Double()
   external double rect_corner_radius;
+
+  /// UTF-8, NOT null-terminated.
+  @ffi.Array.multi([256])
+  external ffi.Array<ffi.Uint8> text;
+
+  /// valid bytes in `text`, 0..LC_TEXT_MAX_BYTES.
+  @ffi.Int32()
+  external int text_length;
+
+  @ffi.Double()
+  external double text_font_size;
+
+  @ffi.Uint32()
+  external int text_color_argb;
+
+  /// 0 = left, 1 = center, 2 = right.
+  @ffi.Int32()
+  external int text_align;
+
+  /// 100..900 (CSS/OpenType scale); backend buckets this
+  @ffi.Int32()
+  external int text_weight;
+
+  /// UTF-8, NOT null-terminated.
+  @ffi.Array.multi([64])
+  external ffi.Array<ffi.Uint8> font_family;
+
+  /// valid bytes in `font_family`.
+  @ffi.Int32()
+  external int font_family_length;
 }
 
 final class LcImage extends ffi.Opaque {}
+
+const int LC_TEXT_MAX_BYTES = 256;
+
+const int LC_FONT_FAMILY_MAX_BYTES = 64;
