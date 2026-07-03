@@ -1,3 +1,9 @@
+## 0.1.0-beta.2
+
+Documentation-only release: updated README with Flutter integration
+details and an architecture diagram, and excluded unnecessary
+Blend2D submodule files from the published package via `.pubignore`.
+
 ## 0.1.0-beta.1
 
 First functional beta. `RectangleLayer`, `TextLayer`, `ImageLayer`, and
