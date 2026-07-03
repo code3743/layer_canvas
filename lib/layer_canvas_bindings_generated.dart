@@ -103,7 +103,8 @@ external int lc_font_unregister(ffi.Pointer<ffi.Char> name);
 enum LcLayerKind {
   LC_LAYER_KIND_UNKNOWN(0),
   LC_LAYER_KIND_RECTANGLE(1),
-  LC_LAYER_KIND_TEXT(2);
+  LC_LAYER_KIND_TEXT(2),
+  LC_LAYER_KIND_IMAGE(3);
 
   final int value;
   const LcLayerKind(this.value);
@@ -112,6 +113,7 @@ enum LcLayerKind {
     0 => LC_LAYER_KIND_UNKNOWN,
     1 => LC_LAYER_KIND_RECTANGLE,
     2 => LC_LAYER_KIND_TEXT,
+    3 => LC_LAYER_KIND_IMAGE,
     _ => throw ArgumentError('Unknown value for LcLayerKind: $value'),
   };
 }
@@ -201,6 +203,24 @@ final class LcLayerDesc extends ffi.Struct {
   /// valid bytes in `font_family`.
   @ffi.Int32()
   external int font_family_length;
+
+  /// ImageLayer-specific fields (meaningful only when kind ==
+  /// LC_LAYER_KIND_IMAGE). Mirrors lib/src/model/layers/image_layer.dart.
+  ///
+  /// `image_data` points to `image_data_size` bytes of *encoded* image data
+  /// (PNG/JPEG/BMP/QOI - detected automatically by Blend2D). Unlike `text`
+  /// and `font_family` above, this isn't embedded inline: images range from
+  /// a few KB to several MB, far past a fixed-size buffer. The pointer is
+  /// owned by the caller for the duration of a single lc_render_scene call
+  /// only; the backend must not retain it afterward.
+  external ffi.Pointer<ffi.Uint8> image_data;
+
+  @ffi.Int32()
+  external int image_data_size;
+
+  /// 0 = fill, 1 = contain, 2 = cover, 3 = none.
+  @ffi.Int32()
+  external int image_fit;
 }
 
 final class LcImage extends ffi.Opaque {}
