@@ -1,90 +1,208 @@
-import 'package:flutter/material.dart' hide Paint;
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
 
 import 'package:layer_canvas/layer_canvas.dart';
+import 'benchmark_page.dart';
 
 void main() {
   runApp(const MyApp());
 }
 
-/// Builds a [Scene] purely from the model API, to prove it is importable
-/// and usable from a Flutter app. There is no renderer yet (that's a later
-/// stage) — this only exercises construction of the object graph.
-Scene _buildSampleScene() {
-  final scene = Scene(width: 1080, height: 1920)
-    ..background = const ImageSource.file('/tmp/background.png');
+// ── Mock watermark definitions ────────────────────────────────────────────────
+//
+// These constants represent where watermark elements would be placed on a
+// 400×300 canvas. In a real pipeline the native engine would composite them
+// directly onto the image pixels; here Flutter widgets reproduce the visual.
+
+const _imageUrl =
+    'https://purina.com.co/sites/default/files/2022-10/Que_debes_saber_antes_de_adoptar_un_gatito.jpg';
+
+// Rectangle watermark band (semi-transparent overlay at the bottom)
+const _bandLeft = 0.0;
+const _bandTop = 240.0;
+const _bandWidth = 400.0;
+const _bandHeight = 60.0;
+
+// Text watermark "gatito"
+const _textLeft = 12.0;
+const _textTop = 256.0;
+
+// Diagonal stamp "gatito" at the center
+const _stampCenterX = 200.0;
+const _stampCenterY = 150.0;
+const _stampRotation = -0.4; // radians ≈ -23°
+
+// ── Scene (native render — rectangles only for now) ───────────────────────────
+
+Scene _buildScene() {
+  // Native engine renders the rectangle band; text is overlaid by Flutter.
+  final scene = Scene(width: 400, height: 300);
 
   scene.add(
     RectangleLayer(
-      size: const Size2D(1080, 200),
-      paint: const Paint(color: Color32.black),
-      zIndex: 0,
+      transform: const LayerTransform(position: Point2D(_bandLeft, _bandTop)),
+      size: const Size2D(_bandWidth, _bandHeight),
+      paint: const LayerPaint(color: Color32(0xCC000000)), // 80% black
     ),
   );
 
   scene.add(
-    TextLayer(
-      text: 'layer_canvas',
-      fontSize: 48,
-      color: Color32.white,
-      align: TextAlignment.center,
-      fontWeight: TextWeight.bold,
-      transform: const LayerTransform(position: Point2D(0, 60)),
-      zIndex: 1,
-    ),
-  );
-
-  scene.add(
-    Group(
-      children: [
-        ImageLayer(
-          source: const ImageSource.file('/tmp/logo.png'),
-          fit: ImageFit.contain,
-          size: const Size2D(120, 120),
-        ),
-      ],
-      transform: const LayerTransform(position: Point2D(24, 24)),
-      zIndex: 2,
+    RectangleLayer(
+      transform: LayerTransform(
+        position: Point2D(_stampCenterX - 80, _stampCenterY - 20),
+        rotation: _stampRotation,
+      ),
+      size: const Size2D(160, 40),
+      paint: const LayerPaint(color: Color32(0x44FFFFFF)),
+      cornerRadius: 6,
     ),
   );
 
   return scene;
 }
 
-class MyApp extends StatefulWidget {
+// ── App ───────────────────────────────────────────────────────────────────────
+
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      title: 'Marca de agua – gatito',
+      debugShowCheckedModeBanner: false,
+      home: WatermarkPage(),
+    );
+  }
 }
 
-class _MyAppState extends State<MyApp> {
-  late Scene scene;
+class WatermarkPage extends StatefulWidget {
+  const WatermarkPage({super.key});
+
+  @override
+  State<WatermarkPage> createState() => _WatermarkPageState();
+}
+
+class _WatermarkPageState extends State<WatermarkPage> {
+  late final Future<Uint8List> _overlay;
 
   @override
   void initState() {
     super.initState();
-    scene = _buildSampleScene();
+    _overlay = Renderer().render(_buildScene());
   }
 
   @override
   Widget build(BuildContext context) {
-    const textStyle = TextStyle(fontSize: 25);
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(title: const Text('layer_canvas')),
-        body: SingleChildScrollView(
-          child: Container(
-            padding: const .all(10),
-            child: Column(
-              children: [
-                Text(
-                  'Scene model (no renderer yet): $scene',
-                  style: textStyle,
-                  textAlign: .center,
-                ),
-              ],
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Marca de agua – gatito'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.speed),
+            tooltip: 'Benchmark',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                  builder: (_) => const BenchmarkPage()),
             ),
           ),
+        ],
+      ),
+      body: Center(
+        child: FutureBuilder<Uint8List>(
+          future: _overlay,
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Text(
+                'Error: ${snapshot.error}',
+                style: const TextStyle(color: Colors.red),
+              );
+            }
+            if (!snapshot.hasData) {
+              return const CircularProgressIndicator();
+            }
+
+            // Stack: base image + native overlay PNG + Flutter text labels
+            return SizedBox(
+              width: 400,
+              height: 300,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // ── Base image ──────────────────────────────────────────
+                  Image.network(
+                    _imageUrl,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (_, child, progress) => progress == null
+                        ? child
+                        : const Center(child: CircularProgressIndicator()),
+                    errorBuilder: (_, __, ___) => const ColoredBox( // ignore: unnecessary_underscores
+                      color: Color(0xFF222222),
+                      child: Icon(
+                        Icons.broken_image,
+                        color: Colors.white54,
+                        size: 48,
+                      ),
+                    ),
+                  ),
+
+                  // ── Native overlay (rectangles rendered by Blend2D) ─────
+                  Image.memory(snapshot.data!, fit: BoxFit.cover),
+
+                  // ── Text watermarks (Flutter, coords match mock above) ──
+
+                  // Bottom-band label
+                  Positioned(
+                    left: _textLeft,
+                    top: _textTop,
+                    child: const Text(
+                      'gatito',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                  ),
+
+                  // Diagonal stamp
+                  Positioned(
+                    left: _stampCenterX - 60,
+                    top: _stampCenterY - 14,
+                    child: Transform.rotate(
+                      angle: _stampRotation,
+                      child: const Text(
+                        'gatito',
+                        style: TextStyle(
+                          color: Color(0xCCFFFFFF),
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 4,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Corner micro-stamp
+                  const Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Text(
+                      '© gatito',
+                      style: TextStyle(
+                        color: Color(0x99FFFFFF),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );

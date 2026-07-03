@@ -46,3 +46,24 @@ extern "C" int32_t lc_image_encode_png(LcImage* image, uint8_t** out_data,
 }
 
 extern "C" void lc_buffer_free(uint8_t* data) { std::free(data); }
+
+extern "C" int32_t lc_render_scene(int32_t width, int32_t height,
+                                    const LcLayerDesc* layers,
+                                    int32_t layer_count, uint8_t** out_data,
+                                    size_t* out_len) {
+  if (width <= 0 || height <= 0) return -1;
+  if (layer_count < 0 || (layers == nullptr && layer_count != 0)) return -2;
+
+  const LcGraphicsBackend* backend = ActiveBackend();
+
+  LcBackendImage* backend_image = backend->create(width, height);
+  if (backend_image == nullptr) return -3;
+
+  int32_t status = backend->render_layers(backend_image, layers, layer_count);
+  if (status == 0) {
+    status = backend->encode_png(backend_image, out_data, out_len);
+  }
+
+  backend->destroy(backend_image);
+  return status;
+}

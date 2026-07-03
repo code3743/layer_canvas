@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "../scene_desc.h"
+
 // Opaque, backend-owned handle for a single canvas. Only the backend
 // implementation that created it knows its real layout.
 typedef struct LcBackendImage LcBackendImage;
@@ -22,6 +24,13 @@ typedef struct {
 
   // Fills the whole canvas with a solid color, packed as 0xAARRGGBB.
   void (*clear)(LcBackendImage* image, uint32_t argb);
+
+  // Composites `layers` onto the canvas, in array order (the caller has
+  // already resolved stacking order and dropped invisible layers - see
+  // scene_desc.h). Layer kinds the backend doesn't recognize must be
+  // skipped, not treated as an error. Returns 0 on success.
+  int32_t (*render_layers)(LcBackendImage* image, const LcLayerDesc* layers,
+                            int32_t layer_count);
 
   // Encodes the canvas as PNG into a freshly malloc'd buffer. Returns 0 on
   // success, non-zero on failure. Ownership of `*out_data` transfers to the

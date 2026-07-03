@@ -13,7 +13,7 @@ class Scene {
   final int height;
 
   /// Painted first, before any [layers]. `null` means a transparent canvas.
-  ImageSource? background;
+  LayerImageSource? background;
 
   final List<Layer> _layers = [];
 
