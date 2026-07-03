@@ -1,9 +1,13 @@
 # layer_canvas
 
-A high-performance 2D compositing engine for Flutter and Dart, backed by
-[Blend2D](https://blend2d.com) via Dart FFI. Compose typed `Layer`s into a
-`Scene` and render to PNG at native speed — on Android, iOS, macOS, Linux,
-and Windows.
+A high-performance 2D compositing engine for Flutter and Dart, using
+[Blend2D](https://blend2d.com) internally as its rasterization backend via
+Dart FFI. Compose typed `Layer`s into a `Scene` and render to PNG at native
+speed — on Android, iOS, macOS, Linux, and Windows.
+
+This is an independent project built on top of Blend2D; it is not an
+official Blend2D binding, wrapper, or port, and is not affiliated with or
+endorsed by the Blend2D project.
 
 ## Features
 
