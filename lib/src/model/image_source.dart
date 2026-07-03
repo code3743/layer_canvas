@@ -7,16 +7,21 @@ import 'dart:typed_data';
 /// New source kinds (e.g. a Flutter asset-bundle resolver, provided by an
 /// integration layer built on top of this package) can be added as new
 /// subclasses without touching this file.
-abstract class ImageSource {
-  const ImageSource();
+///
+/// Named `LayerImageSource` rather than `ImageSource` on purpose: several
+/// widely used Flutter packages (e.g. `image_picker`) already export an
+/// `ImageSource`, and this package is meant to be imported unprefixed
+/// alongside them.
+abstract class LayerImageSource {
+  const LayerImageSource();
 
-  const factory ImageSource.file(String path) = FileImageSource;
+  const factory LayerImageSource.file(String path) = FileImageSource;
 
-  const factory ImageSource.memory(Uint8List bytes) = MemoryImageSource;
+  const factory LayerImageSource.memory(Uint8List bytes) = MemoryImageSource;
 }
 
 /// An image read from a file path on disk at render time.
-class FileImageSource extends ImageSource {
+class FileImageSource extends LayerImageSource {
   final String path;
 
   const FileImageSource(this.path);
@@ -26,7 +31,7 @@ class FileImageSource extends ImageSource {
 }
 
 /// An image already available as encoded bytes (PNG/JPEG/etc.) in memory.
-class MemoryImageSource extends ImageSource {
+class MemoryImageSource extends LayerImageSource {
   final Uint8List bytes;
 
   const MemoryImageSource(this.bytes);

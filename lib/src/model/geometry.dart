@@ -1,4 +1,7 @@
-/// A 2D point or vector, expressed in the [Scene]'s logical pixel space.
+/// A 2D point or vector in the [Scene]'s logical pixel space.
+///
+/// Used for [LayerTransform.position], [LayerTransform.scale], and
+/// [LayerTransform.anchor].
 class Point2D {
   final double x;
   final double y;
@@ -23,7 +26,9 @@ class Point2D {
   String toString() => 'Point2D($x, $y)';
 }
 
-/// A 2D size, expressed in the [Scene]'s logical pixel space.
+/// A 2D size in the [Scene]'s logical pixel space.
+///
+/// Used for [Layer.size] and scene canvas dimensions.
 class Size2D {
   final double width;
   final double height;
