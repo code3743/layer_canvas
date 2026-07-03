@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import 'package:layer_canvas/layer_canvas.dart';
+import 'benchmark_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -95,7 +96,20 @@ class _WatermarkPageState extends State<WatermarkPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Marca de agua – gatito')),
+      appBar: AppBar(
+        title: const Text('Marca de agua – gatito'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.speed),
+            tooltip: 'Benchmark',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                  builder: (_) => const BenchmarkPage()),
+            ),
+          ),
+        ],
+      ),
       body: Center(
         child: FutureBuilder<Uint8List>(
           future: _overlay,
@@ -124,7 +138,7 @@ class _WatermarkPageState extends State<WatermarkPage> {
                     loadingBuilder: (_, child, progress) => progress == null
                         ? child
                         : const Center(child: CircularProgressIndicator()),
-                    errorBuilder: (_, __, ___) => const ColoredBox(
+                    errorBuilder: (_, __, ___) => const ColoredBox( // ignore: unnecessary_underscores
                       color: Color(0xFF222222),
                       child: Icon(
                         Icons.broken_image,
