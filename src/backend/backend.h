@@ -37,6 +37,20 @@ typedef struct {
   // caller, who must release it with `free()`.
   int32_t (*encode_png)(LcBackendImage* image, uint8_t** out_data,
                          size_t* out_len);
+
+  // Registers `size` bytes of font data (TTF/OTF) under `name` so any
+  // TextLayer whose fontFamily matches `name` renders with it. Registration
+  // is global to the backend (not per-image) and persists until explicitly
+  // unregistered. The implementation must copy or otherwise retain `data`
+  // itself — the caller may free it as soon as this call returns. Returns 0
+  // on success, non-zero on failure (e.g. malformed font data).
+  int32_t (*register_font)(const char* name, const uint8_t* data,
+                            size_t size);
+
+  // Removes a font previously registered under `name`. Returns 0 if a font
+  // was found and removed, 1 if no font was registered under that name
+  // (not treated as an error), and a negative value for invalid input.
+  int32_t (*unregister_font)(const char* name);
 } LcGraphicsBackend;
 
 #endif  // LAYER_CANVAS_BACKEND_BACKEND_H_

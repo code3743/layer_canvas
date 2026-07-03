@@ -54,6 +54,19 @@ LC_EXPORT int32_t lc_render_scene(int32_t width, int32_t height,
                                   int32_t layer_count, uint8_t** out_data,
                                   size_t* out_len);
 
+// Registers `data_size` bytes of font data (TTF/OTF) under `name`, so any
+// TextLayer whose fontFamily equals `name` renders with it instead of the
+// backend's built-in default. Registration is global and persists for the
+// lifetime of the process (or until lc_font_unregister is called) — it is
+// not tied to any single Scene or render call. `data` is copied; the caller
+// may free it as soon as this function returns. Returns 0 on success.
+LC_EXPORT int32_t lc_font_register(const char* name, const uint8_t* data,
+                                    size_t data_size);
+
+// Removes a font previously registered under `name`. Returns 0 if found and
+// removed, 1 if no font was registered under that name.
+LC_EXPORT int32_t lc_font_unregister(const char* name);
+
 #ifdef __cplusplus
 }
 #endif
