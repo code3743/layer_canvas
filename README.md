@@ -9,6 +9,17 @@ This is an independent project built on top of Blend2D; it is not an
 official Blend2D binding, wrapper, or port, and is not affiliated with or
 endorsed by the Blend2D project.
 
+> **Flutter integration in progress.** `layer_canvas` itself intentionally
+> stays Flutter-free — its own types (`Color32`, `LayerPaint`, `Point2D`,
+> `TextWeight`...) avoid colliding with `dart:ui`/`material.dart` so the same
+> API works in a plain Dart script, a server, or a Flutter app. A companion
+> package, `layer_canvas_flutter`, is in development to remove that
+> abstraction gap for Flutter apps specifically: widgets and adapters that
+> accept `Color`, `Offset`, `FontWeight`, `BoxFit`, etc. directly, plus
+> Flutter-specific conveniences like asset-based font preloading and
+> `devicePixelRatio`-aware rendering — so Flutter developers never have to
+> juggle two parallel APIs.
+
 ## Features
 
 - **Typed layer model** — `RectangleLayer`, `TextLayer`, `ImageLayer`, `Group`
@@ -45,7 +56,7 @@ Add to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  layer_canvas: ^0.0.1
+  layer_canvas: ^0.1.0-beta.1
 ```
 
 No additional native build setup is required — the Blend2D library is compiled
@@ -344,15 +355,7 @@ LayerImageSource.memory(bytes) // Uint8List of encoded image data
 
 ## Architecture
 
-```mermaid
-flowchart TD
-    A["<b>Dart public API</b> · lib/\nScene · Layer · Renderer"]
-    B["<b>C++ engine</b> · src/\nengine.h / engine.cpp\nLcLayerDesc wire format"]
-    C["<b>Blend2D backend</b> · src/backend/blend2d/\nRaster pipeline · PNG encode"]
-
-    A -->|"Dart FFI — lc_render_scene()"| B
-    B -->|"LcGraphicsBackend vtable"| C
-```
+![Architecture: Dart public API → Dart FFI (lc_render_scene) → C++ engine → LcGraphicsBackend vtable → Blend2D backend](architecture.png)
 
 The engine core (`engine.cpp`) is decoupled from Blend2D through the
 `LcGraphicsBackend` function-pointer table defined in `src/backend/backend.h`.
