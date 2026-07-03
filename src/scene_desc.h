@@ -21,6 +21,7 @@ typedef enum {
   LC_LAYER_KIND_UNKNOWN = 0,
   LC_LAYER_KIND_RECTANGLE = 1,
   LC_LAYER_KIND_TEXT = 2,
+  LC_LAYER_KIND_IMAGE = 3,
 } LcLayerKind;
 
 // Maximum size, in UTF-8 bytes, of a TextLayer's `text` field below. Text
@@ -74,6 +75,19 @@ typedef struct {
   // bucketed by text_weight.
   uint8_t font_family[LC_FONT_FAMILY_MAX_BYTES];  // UTF-8, NOT null-terminated.
   int32_t font_family_length;                      // valid bytes in `font_family`.
+
+  // ImageLayer-specific fields (meaningful only when kind ==
+  // LC_LAYER_KIND_IMAGE). Mirrors lib/src/model/layers/image_layer.dart.
+  //
+  // `image_data` points to `image_data_size` bytes of *encoded* image data
+  // (PNG/JPEG/BMP/QOI - detected automatically by Blend2D). Unlike `text`
+  // and `font_family` above, this isn't embedded inline: images range from
+  // a few KB to several MB, far past a fixed-size buffer. The pointer is
+  // owned by the caller for the duration of a single lc_render_scene call
+  // only; the backend must not retain it afterward.
+  const uint8_t* image_data;
+  int32_t image_data_size;
+  int32_t image_fit;  // 0 = fill, 1 = contain, 2 = cover, 3 = none.
 } LcLayerDesc;
 
 #endif  // LAYER_CANVAS_SCENE_DESC_H_
