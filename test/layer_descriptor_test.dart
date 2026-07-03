@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:ffi';
+import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 import 'package:layer_canvas/layer_canvas.dart';
@@ -30,6 +32,7 @@ void main() {
           align: TextAlignment.center,
           fontWeight: TextWeight.bold,
         ),
+        ownedBuffers: [],
       );
 
       expect(handled, isTrue);
@@ -45,7 +48,7 @@ void main() {
     test('truncates text longer than LC_TEXT_MAX_BYTES', () {
       final text = 'a' * (bindings.LC_TEXT_MAX_BYTES + 50);
 
-      fillNativeLayerDesc(desc, TextLayer(text: text));
+      fillNativeLayerDesc(desc, TextLayer(text: text), ownedBuffers: []);
 
       expect(desc.text_length, bindings.LC_TEXT_MAX_BYTES);
       expect(_readText(desc), utf8.encode(text.substring(
@@ -60,11 +63,84 @@ void main() {
       // byte so the boundary falls in the middle of a '°' character.
       final text = 'x${'°' * 200}'; // 1 + 400 = 401 bytes.
 
-      fillNativeLayerDesc(desc, TextLayer(text: text));
+      fillNativeLayerDesc(desc, TextLayer(text: text), ownedBuffers: []);
 
       final bytes = _readText(desc);
       expect(bytes.length, lessThanOrEqualTo(bindings.LC_TEXT_MAX_BYTES));
       expect(() => utf8.decode(bytes), returnsNormally);
+    });
+  });
+
+  group('fillNativeLayerDesc (ImageLayer)', () {
+    late Pointer<bindings.LcLayerDesc> descPtr;
+    late bindings.LcLayerDesc desc;
+    late List<Pointer<Uint8>> ownedBuffers;
+    late Uint8List pngBytes;
+
+    setUpAll(() async {
+      // A real, tiny PNG produced by the renderer itself - no fixture file
+      // needed, and it's guaranteed to be valid, decodable image data.
+      final scene = Scene(width: 4, height: 4)
+        ..add(
+          RectangleLayer(
+            size: const Size2D(4, 4),
+            paint: const LayerPaint(color: Color32.fromRGB(10, 20, 30)),
+          ),
+        );
+      pngBytes = await const Renderer().render(scene);
+    });
+
+    setUp(() {
+      descPtr = calloc<bindings.LcLayerDesc>();
+      desc = descPtr.ref;
+      ownedBuffers = [];
+    });
+
+    tearDown(() {
+      for (final buffer in ownedBuffers) {
+        calloc.free(buffer);
+      }
+      calloc.free(descPtr);
+    });
+
+    test('marshals a MemoryImageSource\'s bytes and fit into the native '
+        'struct', () {
+      final handled = fillNativeLayerDesc(
+        desc,
+        ImageLayer(
+          source: LayerImageSource.memory(pngBytes),
+          fit: ImageFit.cover,
+        ),
+        ownedBuffers: ownedBuffers,
+      );
+
+      expect(handled, isTrue);
+      expect(desc.kind, bindings.LcLayerKind.LC_LAYER_KIND_IMAGE.value);
+      expect(desc.image_data_size, pngBytes.length);
+      expect(desc.image_fit, ImageFit.cover.index);
+      expect(ownedBuffers, hasLength(1));
+      expect(
+        desc.image_data.asTypedList(desc.image_data_size),
+        pngBytes,
+      );
+    });
+
+    test('reads a FileImageSource from disk', () async {
+      final tempFile = await File(
+        '${Directory.systemTemp.path}/layer_canvas_image_layer_test.png',
+      ).create();
+      await tempFile.writeAsBytes(pngBytes);
+      addTearDown(() => tempFile.delete());
+
+      final handled = fillNativeLayerDesc(
+        desc,
+        ImageLayer(source: LayerImageSource.file(tempFile.path)),
+        ownedBuffers: ownedBuffers,
+      );
+
+      expect(handled, isTrue);
+      expect(desc.image_data_size, pngBytes.length);
+      expect(desc.image_data.asTypedList(desc.image_data_size), pngBytes);
     });
   });
 }
