@@ -10,6 +10,9 @@ and Windows.
 - **Typed layer model** — `RectangleLayer`, `TextLayer`, `ImageLayer`, `Group`
 - **Native Blend2D renderer** — compiled as a [Dart Native Asset][native_assets],
   no separate build step, no CMake invocation needed
+- **Pure Dart core** — no dependency on Flutter or `dart:ui`; the same
+  `Scene`/`Renderer` API runs in a plain `dart run` script, a server, or a
+  Flutter app
 - **Full 2D transform** — position, rotation, scale, and configurable pivot
   anchor on every layer
 - **Compositor semantics** — `zIndex`, `opacity`, `visible` respected on all
