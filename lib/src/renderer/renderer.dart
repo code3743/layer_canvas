@@ -8,19 +8,25 @@ import '../../layer_canvas_bindings_generated.dart' as bindings;
 import '../ffi/layer_descriptor.dart';
 import '../model/scene.dart';
 
-/// Renders a [Scene] to image bytes using the native compositing engine.
+/// Renders a [Scene] to PNG bytes using the native Blend2D compositing engine.
 ///
-/// The native call itself is currently made synchronously on the calling
-/// isolate. A later stage moves it onto a background `Isolate` so it never
-/// blocks the caller's event loop - `render`/`renderToFile` are already
-/// `async` so that change won't be a breaking one.
+/// ```dart
+/// final scene = Scene(width: 800, height: 600)
+///   ..add(RectangleLayer(
+///     size: const Size2D(800, 600),
+///     paint: const LayerPaint(color: Color32.fromRGB(30, 30, 30)),
+///   ));
+/// final bytes = await Renderer().render(scene);
+/// ```
+///
+/// `render` is `async` so future versions can move the native call off the
+/// UI isolate without a breaking API change.
 class Renderer {
   const Renderer();
 
-  /// Renders [scene] and returns the encoded image bytes (PNG).
+  /// Renders [scene] and returns the encoded PNG bytes.
   ///
-  /// Throws a [RenderException] if the native engine fails to produce an
-  /// image.
+  /// Throws a [RenderException] if the native engine returns a non-zero status.
   Future<Uint8List> render(Scene scene) async => _renderSync(scene);
 
   /// Renders [scene] and writes the encoded bytes to [outputPath].
@@ -46,8 +52,6 @@ class Renderer {
       final outData = calloc<Pointer<Uint8>>();
       final outLen = calloc<Size>();
       try {
-        // ignore: avoid_print
-        print('DEBUG: calling lc_render_scene, nativeCount=$nativeCount');
         final status = bindings.lc_render_scene(
           scene.width,
           scene.height,
@@ -56,8 +60,6 @@ class Renderer {
           outData,
           outLen,
         );
-        // ignore: avoid_print
-        print('DEBUG: lc_render_scene returned status=$status');
         if (status != 0) {
           throw RenderException(
             'Native render failed with status $status',

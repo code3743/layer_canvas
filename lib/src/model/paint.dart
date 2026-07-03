@@ -1,15 +1,20 @@
 import 'color.dart';
 
+/// How a shape's geometry should be painted.
 enum LayerPaintStyle { fill, stroke, fillAndStroke }
 
-/// Describes how a shape should be painted: fill color, stroke color/width.
+/// Fill and stroke properties for a shape layer.
 ///
-/// This is intentionally minimal and backend-agnostic — it only describes
-/// *what* to paint, never *how* a specific graphics backend paints it.
+/// Named `LayerPaint` rather than `Paint` to avoid shadowing `dart:ui`'s
+/// `Paint` when imported alongside `material.dart`.
 ///
-/// Named `LayerPaint` rather than `Paint` on purpose: `dart:ui` (and
-/// therefore every Flutter app) already exports a `Paint`, and this
-/// package is meant to be imported unprefixed alongside `material.dart`.
+/// ```dart
+/// const paint = LayerPaint(
+///   color: Color32.fromRGB(0, 120, 255),
+///   style: LayerPaintStyle.fillAndStroke,
+///   strokeWidth: 2,
+/// );
+/// ```
 class LayerPaint {
   final Color32 color;
   final LayerPaintStyle style;

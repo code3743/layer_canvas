@@ -1,132 +1,194 @@
-import 'dart:ffi';
 import 'dart:typed_data';
 
-import 'package:ffi/ffi.dart';
-import 'package:flutter/material.dart' hide Size;
+import 'package:flutter/material.dart';
 
 import 'package:layer_canvas/layer_canvas.dart';
-import 'package:layer_canvas/layer_canvas_bindings_generated.dart'
-    as bindings;
-
-// TEMPORARY diagnostic: bypasses Renderer/lc_render_scene entirely to test
-// whether the simpler Stage-4 path (create/clear/encode_png, no per-layer
-// transform loop) also hangs on this device.
-Future<Uint8List> _diagnosticClearOnly() async {
-  // ignore: avoid_print
-  print('DEBUG: diagnostic - creating image');
-  final image = bindings.lc_image_create(64, 64);
-  // ignore: avoid_print
-  print('DEBUG: diagnostic - clearing image');
-  bindings.lc_image_clear(image, 0xFF3366CC);
-  // ignore: avoid_print
-  print('DEBUG: diagnostic - encoding png');
-  final outData = calloc<Pointer<Uint8>>();
-  final outLen = calloc<Size>();
-  final status = bindings.lc_image_encode_png(image, outData, outLen);
-  // ignore: avoid_print
-  print('DEBUG: diagnostic - encode status=$status');
-  final bytes = Uint8List.fromList(outData.value.asTypedList(outLen.value));
-  bindings.lc_buffer_free(outData.value);
-  bindings.lc_image_destroy(image);
-  calloc.free(outData);
-  calloc.free(outLen);
-  return bytes;
-}
 
 void main() {
   runApp(const MyApp());
 }
 
-/// Builds a [Scene] exercising every RectangleLayer feature the native
-/// engine currently supports: position, rotation, anchor-based pivoting,
-/// scale, opacity, corner radius and fill/stroke paint styles.
-///
-/// ImageLayer/TextLayer/Group are later stages - the model already allows
-/// constructing them, but the native renderer skips kinds it doesn't know
-/// yet rather than failing, so they're left out of this sample scene for
-/// now to keep it an honest preview of what actually renders today.
-Scene _buildSampleScene() {
-  final scene = Scene(width: 300, height: 200);
+// ── Mock watermark definitions ────────────────────────────────────────────────
+//
+// These constants represent where watermark elements would be placed on a
+// 400×300 canvas. In a real pipeline the native engine would composite them
+// directly onto the image pixels; here Flutter widgets reproduce the visual.
+
+const _imageUrl =
+    'https://purina.com.co/sites/default/files/2022-10/Que_debes_saber_antes_de_adoptar_un_gatito.jpg';
+
+// Rectangle watermark band (semi-transparent overlay at the bottom)
+const _bandLeft = 0.0;
+const _bandTop = 240.0;
+const _bandWidth = 400.0;
+const _bandHeight = 60.0;
+
+// Text watermark "gatito"
+const _textLeft = 12.0;
+const _textTop = 256.0;
+
+// Diagonal stamp "gatito" at the center
+const _stampCenterX = 200.0;
+const _stampCenterY = 150.0;
+const _stampRotation = -0.4; // radians ≈ -23°
+
+// ── Scene (native render — rectangles only for now) ───────────────────────────
+
+Scene _buildScene() {
+  // Native engine renders the rectangle band; text is overlaid by Flutter.
+  final scene = Scene(width: 400, height: 300);
 
   scene.add(
     RectangleLayer(
-      transform: const LayerTransform(position: Point2D(20, 20)),
-      size: const Size2D(100, 60),
-      paint: const LayerPaint(color: Color32.fromRGB(0, 90, 220)),
-      cornerRadius: 16,
+      transform: const LayerTransform(position: Point2D(_bandLeft, _bandTop)),
+      size: const Size2D(_bandWidth, _bandHeight),
+      paint: const LayerPaint(color: Color32(0xCC000000)), // 80% black
     ),
   );
 
   scene.add(
     RectangleLayer(
       transform: LayerTransform(
-        position: const Point2D(200, 60),
-        rotation: 30 * 3.1415926535 / 180,
+        position: Point2D(_stampCenterX - 80, _stampCenterY - 20),
+        rotation: _stampRotation,
       ),
-      size: const Size2D(80, 50),
-      paint: const LayerPaint(color: Color32.fromRGB(220, 30, 30)),
-      opacity: 0.6,
-    ),
-  );
-
-  scene.add(
-    RectangleLayer(
-      transform: const LayerTransform(
-        position: Point2D(30, 120),
-        scale: Point2D(1.5, 1.5),
-        anchor: Point2D(0, 0),
-      ),
-      size: const Size2D(60, 40),
-      paint: const LayerPaint(
-        color: Color32.fromRGB(20, 160, 60),
-        style: LayerPaintStyle.stroke,
-        strokeWidth: 4,
-      ),
+      size: const Size2D(160, 40),
+      paint: const LayerPaint(color: Color32(0x44FFFFFF)),
+      cornerRadius: 6,
     ),
   );
 
   return scene;
 }
 
-class MyApp extends StatefulWidget {
+// ── App ───────────────────────────────────────────────────────────────────────
+
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      title: 'Marca de agua – gatito',
+      debugShowCheckedModeBanner: false,
+      home: WatermarkPage(),
+    );
+  }
 }
 
-class _MyAppState extends State<MyApp> {
-  late Scene scene;
-  late Future<Uint8List> renderedPng;
+class WatermarkPage extends StatefulWidget {
+  const WatermarkPage({super.key});
+
+  @override
+  State<WatermarkPage> createState() => _WatermarkPageState();
+}
+
+class _WatermarkPageState extends State<WatermarkPage> {
+  late final Future<Uint8List> _overlay;
 
   @override
   void initState() {
     super.initState();
-    scene = _buildSampleScene();
-    renderedPng = _diagnosticClearOnly();
+    _overlay = Renderer().render(_buildScene());
   }
 
   @override
   Widget build(BuildContext context) {
-    const textStyle = TextStyle(fontSize: 16);
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(title: const Text('layer_canvas')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: .center,
-            children: [
-              Text('$scene', style: textStyle, textAlign: .center),
-              const SizedBox(height: 16),
-              FutureBuilder<Uint8List>(
-                future: renderedPng,
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) return const CircularProgressIndicator();
-                  return Image.memory(snapshot.data!);
-                },
+    return Scaffold(
+      appBar: AppBar(title: const Text('Marca de agua – gatito')),
+      body: Center(
+        child: FutureBuilder<Uint8List>(
+          future: _overlay,
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Text(
+                'Error: ${snapshot.error}',
+                style: const TextStyle(color: Colors.red),
+              );
+            }
+            if (!snapshot.hasData) {
+              return const CircularProgressIndicator();
+            }
+
+            // Stack: base image + native overlay PNG + Flutter text labels
+            return SizedBox(
+              width: 400,
+              height: 300,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // ── Base image ──────────────────────────────────────────
+                  Image.network(
+                    _imageUrl,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (_, child, progress) => progress == null
+                        ? child
+                        : const Center(child: CircularProgressIndicator()),
+                    errorBuilder: (_, __, ___) => const ColoredBox(
+                      color: Color(0xFF222222),
+                      child: Icon(
+                        Icons.broken_image,
+                        color: Colors.white54,
+                        size: 48,
+                      ),
+                    ),
+                  ),
+
+                  // ── Native overlay (rectangles rendered by Blend2D) ─────
+                  Image.memory(snapshot.data!, fit: BoxFit.cover),
+
+                  // ── Text watermarks (Flutter, coords match mock above) ──
+
+                  // Bottom-band label
+                  Positioned(
+                    left: _textLeft,
+                    top: _textTop,
+                    child: const Text(
+                      'gatito',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                  ),
+
+                  // Diagonal stamp
+                  Positioned(
+                    left: _stampCenterX - 60,
+                    top: _stampCenterY - 14,
+                    child: Transform.rotate(
+                      angle: _stampRotation,
+                      child: const Text(
+                        'gatito',
+                        style: TextStyle(
+                          color: Color(0xCCFFFFFF),
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 4,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Corner micro-stamp
+                  const Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Text(
+                      '© gatito',
+                      style: TextStyle(
+                        color: Color(0x99FFFFFF),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
