@@ -1,0 +1,22 @@
+# Blend2D is vendored as a git submodule (third_party/blend2d), but only
+# its headers and the curated .cpp files listed in hook/build.dart are
+# needed to build and use this package. Exclude everything else the
+# submodule ships — its own benchmarks, demos, sample apps, unit tests,
+# build scripts and docs — so `dart pub publish` doesn't bundle files
+# that are irrelevant to consumers of layer_canvas. LICENSE.md is kept
+# for attribution.
+third_party/blend2d/.editorconfig
+third_party/blend2d/.github/
+third_party/blend2d/CMakeLists.txt
+third_party/blend2d/CMakePresets.json
+third_party/blend2d/CONTRIBUTING.md
+third_party/blend2d/README.md
+third_party/blend2d/blend2d-config.cmake.in
+third_party/blend2d/blend2d-testing/
+third_party/blend2d/blend2d-version.py
+third_party/blend2d/configure.sh
+third_party/blend2d/configure_demos.sh
+third_party/blend2d/configure_sanitizers.sh
+third_party/blend2d/configure_vs2022_x64.bat
+third_party/blend2d/configure_vs2022_x86.bat
+third_party/blend2d/blend2d/**/*_test.cpp
