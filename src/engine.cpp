@@ -41,7 +41,7 @@ extern "C" void lc_image_clear(LcImage* image, uint32_t argb) {
 
 extern "C" int32_t lc_image_encode_png(LcImage* image, uint8_t** out_data,
                                         size_t* out_len) {
-  if (image == nullptr) return -1;
+  if (image == nullptr || out_data == nullptr || out_len == nullptr) return -1;
   return ActiveBackend()->encode_png(image->backend_image, out_data, out_len);
 }
 

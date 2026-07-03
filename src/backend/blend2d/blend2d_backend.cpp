@@ -100,6 +100,7 @@ int32_t RenderLayers(LcBackendImage* image, const LcLayerDesc* layers,
 }
 
 int32_t EncodePng(LcBackendImage* image, uint8_t** out_data, size_t* out_len) {
+  if (image == nullptr || out_data == nullptr || out_len == nullptr) return -1;
   auto* wrapper = reinterpret_cast<Blend2DImage*>(image);
 
   BLImageCodec codec;
