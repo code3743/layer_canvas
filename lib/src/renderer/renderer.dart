@@ -40,11 +40,16 @@ class Renderer {
       ..sort((a, b) => a.zIndex.compareTo(b.zIndex));
 
     final nativeLayers = calloc<bindings.LcLayerDesc>(renderable.length);
+    // Native buffers allocated for ImageLayer bytes (see
+    // fillNativeLayerDesc) — these live only for the duration of the
+    // lc_render_scene call below, unlike text/font_family which are copied
+    // inline into the struct itself.
+    final ownedBuffers = <Pointer<Uint8>>[];
     try {
       var nativeCount = 0;
       for (final layer in renderable) {
         final slot = (nativeLayers + nativeCount).ref;
-        if (fillNativeLayerDesc(slot, layer)) {
+        if (fillNativeLayerDesc(slot, layer, ownedBuffers: ownedBuffers)) {
           nativeCount++;
         }
       }
@@ -76,6 +81,9 @@ class Renderer {
         calloc.free(outLen);
       }
     } finally {
+      for (final buffer in ownedBuffers) {
+        calloc.free(buffer);
+      }
       calloc.free(nativeLayers);
     }
   }
