@@ -1,15 +1,24 @@
 # layer_canvas
 
-A high-performance 2D compositing engine for Flutter and Dart, backed by
-[Blend2D](https://blend2d.com) via Dart FFI. Compose typed `Layer`s into a
-`Scene` and render to PNG at native speed — on Android, iOS, macOS, Linux,
-and Windows.
+A high-performance 2D compositing engine for Flutter and Dart, using
+[Blend2D](https://blend2d.com) internally as its rasterization backend via
+Dart FFI. Compose typed `Layer`s into a `Scene` and render to PNG at native
+speed — on Android, iOS, macOS, Linux, and Windows.
+
+This is an independent project built on top of Blend2D; it is not an
+official Blend2D binding, wrapper, or port, and is not affiliated with or
+endorsed by the Blend2D project.
 
 ## Features
 
 - **Typed layer model** — `RectangleLayer`, `TextLayer`, `ImageLayer`, `Group`
 - **Native Blend2D renderer** — compiled as a [Dart Native Asset][native_assets],
   no separate build step, no CMake invocation needed
+- **Native text rendering** — `TextLayer` ships with an embedded Roboto
+  (regular/bold), and apps can register their own fonts via `FontRegistry`
+- **Pure Dart core** — no dependency on Flutter or `dart:ui`; the same
+  `Scene`/`Renderer` API runs in a plain `dart run` script, a server, or a
+  Flutter app
 - **Full 2D transform** — position, rotation, scale, and configurable pivot
   anchor on every layer
 - **Compositor semantics** — `zIndex`, `opacity`, `visible` respected on all
@@ -97,6 +106,126 @@ scene.add(RectangleLayer(
 final png = await Renderer().render(scene);
 ```
 
+### Images
+
+```dart
+final scene = Scene(width: 400, height: 300);
+
+scene.add(ImageLayer(
+  source: LayerImageSource.file('/path/to/photo.jpg'), // or .memory(bytes)
+  size: const Size2D(400, 300),
+  fit: ImageFit.cover,
+));
+
+final png = await Renderer().render(scene);
+```
+
+Blend2D decodes PNG/JPEG/BMP/QOI automatically (no format needs to be
+specified). `fit` behaves like `BoxFit` in Flutter — `fill` stretches to
+the given `size` ignoring aspect ratio, `contain` scales uniformly and
+letterboxes, `cover` scales uniformly and crops, `none` draws at the
+decoded image's natural pixel size. Without an explicit `size`, `none`'s
+natural-size behavior is used regardless of `fit`.
+
+For a full-canvas photo underneath everything else — the common case for a
+watermark — `Scene.background` is shorter than an `ImageLayer` and always
+covers the whole canvas:
+
+```dart
+final scene = Scene(
+  width: 400,
+  height: 300,
+  background: LayerImageSource.file('/path/to/photo.jpg'),
+);
+```
+
+### Text
+
+```dart
+final scene = Scene(width: 400, height: 120);
+
+scene.add(TextLayer(
+  text: '6.2442° N, 75.5812° W',
+  transform: const LayerTransform(position: Point2D(16, 16)),
+  size: const Size2D(368, 30),
+  fontSize: 20,
+  color: Color32.white,
+  align: TextAlignment.left,
+));
+
+scene.add(TextLayer(
+  text: 'MEDELLÍN, COLOMBIA',
+  transform: const LayerTransform(position: Point2D(16, 56)),
+  size: const Size2D(368, 30),
+  fontSize: 16,
+  color: Color32.fromRGB(255, 200, 0),
+  align: TextAlignment.center,
+  fontWeight: TextWeight.bold,
+));
+
+final png = await Renderer().render(scene);
+```
+
+`TextLayer` renders natively (no Flutter widgets involved) using an embedded
+Roboto — `fontWeight` values `>= 600` pick the bold face, everything else
+regular. Alignment is honored within `size`'s width; without an explicit
+`size`, text is drawn from `transform.position` with no wrapping.
+
+### Custom fonts
+
+Register your own TTF/OTF bytes once (e.g. at app startup) and reference
+them by name from any `TextLayer`:
+
+```dart
+final data = await File('assets/fonts/Brand-Regular.ttf').readAsBytes();
+FontRegistry.register('Brand', data);
+
+scene.add(TextLayer(
+  text: 'On brand',
+  fontFamily: 'Brand', // falls back to the embedded Roboto if unregistered
+));
+```
+
+Registration is global to the process, not scoped to a `Scene` or
+`Renderer` — call it once, use the name everywhere.
+
+### Opting out of the embedded default font
+
+`TextLayer` ships with an embedded Roboto (regular and bold) so it works
+out of the box, at a cost of roughly 1.4 MB in the compiled native
+library. Apps that never use `TextLayer`, or that always register their
+own font via `FontRegistry`, can drop it by adding this to their own
+`pubspec.yaml` (not this package's):
+
+```yaml
+hooks:
+  user_defines:
+    layer_canvas:
+      embed_default_font: false
+```
+
+With this set, a `TextLayer` that doesn't match a font registered via
+`FontRegistry` renders nothing for that layer — the rest of the scene
+still renders normally — instead of falling back to Roboto.
+
+### Groups
+
+```dart
+scene.add(Group(
+  transform: const LayerTransform(position: Point2D(50, 400), rotation: 0.1),
+  opacity: 0.9,
+  children: [
+    RectangleLayer(size: const Size2D(200, 60), paint: const LayerPaint(color: Color32(0xAA000000))),
+    TextLayer(text: 'Grouped', transform: const LayerTransform(position: Point2D(12, 18)), color: Color32.white),
+  ],
+));
+```
+
+A `Group`'s `transform` and `opacity` apply to every child as one unit —
+move, rotate, or fade the whole cluster without touching each child's own
+values. Groups can nest arbitrarily and never reach the native engine: the
+renderer flattens them into concrete layers first.
+
 ### Write to file
 
 ```dart
@@ -117,7 +246,7 @@ layers.
 | `remove(String id)` | Removes the layer with the given id. Returns `false` if not found. |
 | `clear()` | Removes all layers. |
 | `layers` | Unmodifiable view of the current layers. |
-| `background` | Optional `LayerImageSource` painted before any layer. |
+| `background` | Optional `LayerImageSource` painted before any layer, scaled to cover the whole canvas (like an implicit full-size `ImageLayer` with `fit: ImageFit.cover`, regardless of any layer's `zIndex`). |
 
 ### `Layer` (base class)
 
@@ -148,14 +277,14 @@ const LayerTransform(
 | Type | Status | Key properties |
 |---|---|---|
 | `RectangleLayer` | ✅ Native render | `paint`, `cornerRadius` |
-| `ImageLayer` | 🔲 Model only | `source`, `fit` |
-| `TextLayer` | 🔲 Model only | `text`, `fontSize`, `color`, `fontFamily`, `fontWeight`, `align` |
-| `Group` | 🔲 Model only | `children` |
+| `TextLayer` | ✅ Native render | `text`, `fontSize`, `color`, `fontFamily`, `fontWeight`, `align` |
+| `Group` | ✅ Flattened before render | `children` |
+| `ImageLayer` | ✅ Native render | `source`, `fit` |
 
-> **Note:** `ImageLayer`, `TextLayer`, and `Group` are part of the scene model
-> and are silently skipped by the native renderer until their backend
-> implementations are added. Scenes containing unsupported layer types never
-> fail — only `RectangleLayer`s contribute pixels today.
+> **Note:** `Group` never reaches the native engine — the renderer expands
+> it into its concrete descendants first, composing the group's
+> transform/opacity into each one (see `scene_flattener.dart`), so
+> `scene_desc.h` and the Blend2D backend need no changes to support it.
 
 ### `Renderer`
 
@@ -171,6 +300,17 @@ await renderer.renderToFile(scene, outputPath);
 
 Throws `RenderException` (a subtype of `Exception`) if the native engine
 returns a non-zero status code.
+
+### `FontRegistry`
+
+```dart
+FontRegistry.register('Brand', ttfBytes); // Uint8List of raw TTF/OTF data
+FontRegistry.unregister('Brand');
+```
+
+Global to the process — registered fonts are available to every `Scene`
+rendered afterward, by any `Renderer`. `register` throws a
+`FontRegistrationException` if `ttfBytes` isn't valid font data.
 
 ### `Color32`
 

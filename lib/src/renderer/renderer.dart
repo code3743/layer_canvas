@@ -6,7 +6,11 @@ import 'package:ffi/ffi.dart';
 
 import '../../layer_canvas_bindings_generated.dart' as bindings;
 import '../ffi/layer_descriptor.dart';
+import '../model/geometry.dart';
+import '../model/layers/image_layer.dart';
 import '../model/scene.dart';
+import '../model/transform.dart';
+import 'scene_flattener.dart';
 
 /// Renders a [Scene] to PNG bytes using the native Blend2D compositing engine.
 ///
@@ -36,15 +40,41 @@ class Renderer {
   }
 
   Uint8List _renderSync(Scene scene) {
-    final renderable = scene.layers.where((layer) => layer.visible).toList()
-      ..sort((a, b) => a.zIndex.compareTo(b.zIndex));
+    final background = scene.background;
+    final renderable = <ResolvedLayer>[
+      // Painted first (bottom of the stack), covering the whole canvas,
+      // regardless of any layer's zIndex - matches Scene.background's doc
+      // comment ("painted before any layer").
+      if (background != null)
+        ResolvedLayer(
+          ImageLayer(
+            source: background,
+            size: Size2D(scene.width.toDouble(), scene.height.toDouble()),
+            fit: ImageFit.cover,
+          ),
+          const LayerTransform(),
+          1.0,
+        ),
+      ...flattenScene(scene.layers),
+    ];
 
     final nativeLayers = calloc<bindings.LcLayerDesc>(renderable.length);
+    // Native buffers allocated for ImageLayer bytes (see
+    // fillNativeLayerDesc) — these live only for the duration of the
+    // lc_render_scene call below, unlike text/font_family which are copied
+    // inline into the struct itself.
+    final ownedBuffers = <Pointer<Uint8>>[];
     try {
       var nativeCount = 0;
-      for (final layer in renderable) {
+      for (final resolved in renderable) {
         final slot = (nativeLayers + nativeCount).ref;
-        if (fillNativeLayerDesc(slot, layer)) {
+        if (fillNativeLayerDesc(
+          slot,
+          resolved.source,
+          transform: resolved.transform,
+          opacity: resolved.opacity,
+          ownedBuffers: ownedBuffers,
+        )) {
           nativeCount++;
         }
       }
@@ -76,6 +106,9 @@ class Renderer {
         calloc.free(outLen);
       }
     } finally {
+      for (final buffer in ownedBuffers) {
+        calloc.free(buffer);
+      }
       calloc.free(nativeLayers);
     }
   }

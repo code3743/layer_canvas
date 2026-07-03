@@ -9,4 +9,5 @@ export 'src/model/layers/text_layer.dart';
 export 'src/model/paint.dart';
 export 'src/model/scene.dart';
 export 'src/model/transform.dart';
+export 'src/renderer/font_registry.dart';
 export 'src/renderer/renderer.dart';

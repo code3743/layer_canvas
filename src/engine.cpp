@@ -41,7 +41,7 @@ extern "C" void lc_image_clear(LcImage* image, uint32_t argb) {
 
 extern "C" int32_t lc_image_encode_png(LcImage* image, uint8_t** out_data,
                                         size_t* out_len) {
-  if (image == nullptr) return -1;
+  if (image == nullptr || out_data == nullptr || out_len == nullptr) return -1;
   return ActiveBackend()->encode_png(image->backend_image, out_data, out_len);
 }
 
@@ -66,4 +66,13 @@ extern "C" int32_t lc_render_scene(int32_t width, int32_t height,
 
   backend->destroy(backend_image);
   return status;
+}
+
+extern "C" int32_t lc_font_register(const char* name, const uint8_t* data,
+                                     size_t data_size) {
+  return ActiveBackend()->register_font(name, data, data_size);
+}
+
+extern "C" int32_t lc_font_unregister(const char* name) {
+  return ActiveBackend()->unregister_font(name);
 }
