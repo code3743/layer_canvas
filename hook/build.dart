@@ -151,6 +151,26 @@ void main(List<String> args) async {
     final isAndroid = input.config.buildCodeAssets &&
         input.config.code.targetOS == OS.android;
 
+    // Consumers can opt out of embedding the default Roboto font (~1.4 MB
+    // of the compiled native library) by setting, in their own
+    // pubspec.yaml:
+    //   hooks:
+    //     user_defines:
+    //       layer_canvas:
+    //         embed_default_font: false
+    // Defaults to true so TextLayer keeps working out of the box for
+    // anyone who doesn't set this. Apps that never use TextLayer, or that
+    // always register their own font via FontRegistry, can turn it off.
+    final embedDefaultFontDefine =
+        input.userDefines['embed_default_font'];
+    if (embedDefaultFontDefine is! bool?) {
+      throw const FormatException(
+        'hooks.user_defines.layer_canvas.embed_default_font must be a '
+        'boolean (or omitted)',
+      );
+    }
+    final embedDefaultFont = embedDefaultFontDefine ?? true;
+
     final cbuilder = CBuilder.library(
       name: packageName,
       assetName: '${packageName}_bindings_generated.dart',
@@ -177,6 +197,10 @@ void main(List<String> args) async {
         // before Dart loads native assets. The no-TLS path falls back to a
         // simple atomic counter, which is correct and plenty fast enough.
         'BL_BUILD_NO_TLS': null,
+        // Gates the embedded default font in
+        // src/backend/blend2d/blend2d_backend.cpp - see the
+        // embedDefaultFont comment above.
+        if (embedDefaultFont) 'LC_EMBED_DEFAULT_FONT': null,
         // The Android NDK x86_64 baseline defines __SSE4_2__ (and __SSSE3__)
         // unconditionally, which causes Blend2D's dispatch code in checksum.cpp
         // and otglyf.cpp to reference the SSE2/SSE4.2 SIMD variants. We mirror
