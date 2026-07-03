@@ -106,6 +106,39 @@ scene.add(RectangleLayer(
 final png = await Renderer().render(scene);
 ```
 
+### Images
+
+```dart
+final scene = Scene(width: 400, height: 300);
+
+scene.add(ImageLayer(
+  source: LayerImageSource.file('/path/to/photo.jpg'), // or .memory(bytes)
+  size: const Size2D(400, 300),
+  fit: ImageFit.cover,
+));
+
+final png = await Renderer().render(scene);
+```
+
+Blend2D decodes PNG/JPEG/BMP/QOI automatically (no format needs to be
+specified). `fit` behaves like `BoxFit` in Flutter — `fill` stretches to
+the given `size` ignoring aspect ratio, `contain` scales uniformly and
+letterboxes, `cover` scales uniformly and crops, `none` draws at the
+decoded image's natural pixel size. Without an explicit `size`, `none`'s
+natural-size behavior is used regardless of `fit`.
+
+For a full-canvas photo underneath everything else — the common case for a
+watermark — `Scene.background` is shorter than an `ImageLayer` and always
+covers the whole canvas:
+
+```dart
+final scene = Scene(
+  width: 400,
+  height: 300,
+  background: LayerImageSource.file('/path/to/photo.jpg'),
+);
+```
+
 ### Text
 
 ```dart
@@ -175,6 +208,24 @@ With this set, a `TextLayer` that doesn't match a font registered via
 `FontRegistry` renders nothing for that layer — the rest of the scene
 still renders normally — instead of falling back to Roboto.
 
+### Groups
+
+```dart
+scene.add(Group(
+  transform: const LayerTransform(position: Point2D(50, 400), rotation: 0.1),
+  opacity: 0.9,
+  children: [
+    RectangleLayer(size: const Size2D(200, 60), paint: const LayerPaint(color: Color32(0xAA000000))),
+    TextLayer(text: 'Grouped', transform: const LayerTransform(position: Point2D(12, 18)), color: Color32.white),
+  ],
+));
+```
+
+A `Group`'s `transform` and `opacity` apply to every child as one unit —
+move, rotate, or fade the whole cluster without touching each child's own
+values. Groups can nest arbitrarily and never reach the native engine: the
+renderer flattens them into concrete layers first.
+
 ### Write to file
 
 ```dart
@@ -195,7 +246,7 @@ layers.
 | `remove(String id)` | Removes the layer with the given id. Returns `false` if not found. |
 | `clear()` | Removes all layers. |
 | `layers` | Unmodifiable view of the current layers. |
-| `background` | Optional `LayerImageSource` painted before any layer. |
+| `background` | Optional `LayerImageSource` painted before any layer, scaled to cover the whole canvas (like an implicit full-size `ImageLayer` with `fit: ImageFit.cover`, regardless of any layer's `zIndex`). |
 
 ### `Layer` (base class)
 
@@ -227,13 +278,13 @@ const LayerTransform(
 |---|---|---|
 | `RectangleLayer` | ✅ Native render | `paint`, `cornerRadius` |
 | `TextLayer` | ✅ Native render | `text`, `fontSize`, `color`, `fontFamily`, `fontWeight`, `align` |
-| `ImageLayer` | 🔲 Model only | `source`, `fit` |
-| `Group` | 🔲 Model only | `children` |
+| `Group` | ✅ Flattened before render | `children` |
+| `ImageLayer` | ✅ Native render | `source`, `fit` |
 
-> **Note:** `ImageLayer` and `Group` are part of the scene model and are
-> silently skipped by the native renderer until their backend
-> implementations are added. Scenes containing unsupported layer types never
-> fail — only `RectangleLayer`s and `TextLayer`s contribute pixels today.
+> **Note:** `Group` never reaches the native engine — the renderer expands
+> it into its concrete descendants first, composing the group's
+> transform/opacity into each one (see `scene_flattener.dart`), so
+> `scene_desc.h` and the Blend2D backend need no changes to support it.
 
 ### `Renderer`
 
