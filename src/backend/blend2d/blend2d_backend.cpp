@@ -2,6 +2,8 @@
 
 #include <blend2d/blend2d.h>
 
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -294,6 +296,84 @@ void RenderText(BLContext& ctx, const LcLayerDesc& layer) {
   ctx.restore();
 }
 
+// ImageLayer.fit values (mirrors lib/src/model/layers/image_layer.dart's
+// ImageFit, in the same declared order).
+constexpr int32_t kImageFitFill = 0;
+constexpr int32_t kImageFitContain = 1;
+constexpr int32_t kImageFitCover = 2;
+constexpr int32_t kImageFitNone = 3;
+
+void RenderImage(BLContext& ctx, const LcLayerDesc& layer) {
+  if (layer.image_data == nullptr || layer.image_data_size <= 0) return;
+
+  BLImage image;
+  if (image.read_from_data(layer.image_data,
+                            static_cast<size_t>(layer.image_data_size)) !=
+      BL_SUCCESS) {
+    // Malformed/unsupported image bytes - skip this layer rather than fail
+    // the whole render, same philosophy as an unrecognized layer kind.
+    return;
+  }
+
+  // Same pivot transform as RenderRectangle/RenderText - see the comment
+  // on RenderRectangle.
+  ctx.save();
+  ctx.translate(layer.pos_x, layer.pos_y);
+  ctx.translate(layer.anchor_x * layer.width, layer.anchor_y * layer.height);
+  ctx.rotate(layer.rotation);
+  ctx.scale(layer.scale_x, layer.scale_y);
+  ctx.translate(-layer.anchor_x * layer.width, -layer.anchor_y * layer.height);
+  ctx.set_global_alpha(layer.opacity);
+
+  // No explicit size means "intrinsic": draw at the decoded image's own
+  // pixel dimensions (mirrors Layer.size's doc comment in layer.dart).
+  const double dest_w = layer.width > 0.0 ? layer.width : image.width();
+  const double dest_h = layer.height > 0.0 ? layer.height : image.height();
+  const double img_w = image.width();
+  const double img_h = image.height();
+
+  switch (layer.image_fit) {
+    case kImageFitContain: {
+      const double scale = std::min(dest_w / img_w, dest_h / img_h);
+      const double w = img_w * scale;
+      const double h = img_h * scale;
+      ctx.blit_image(
+          BLRect((dest_w - w) / 2.0, (dest_h - h) / 2.0, w, h), image);
+      break;
+    }
+    case kImageFitCover: {
+      const double scale = std::max(dest_w / img_w, dest_h / img_h);
+      const double crop_w = dest_w / scale;
+      const double crop_h = dest_h / scale;
+      // Round rather than truncate: truncation could drop up to a full pixel
+      // of the source crop, nudging the cover framing off-center.
+      const BLRectI src_area(
+          static_cast<int>(std::lround((img_w - crop_w) / 2.0)),
+          static_cast<int>(std::lround((img_h - crop_h) / 2.0)),
+          static_cast<int>(std::lround(crop_w)),
+          static_cast<int>(std::lround(crop_h)));
+      ctx.blit_image(BLRect(0, 0, dest_w, dest_h), image, src_area);
+      break;
+    }
+    case kImageFitNone: {
+      if (layer.width > 0.0 && layer.height > 0.0) {
+        ctx.clip_to_rect(BLRect(0, 0, dest_w, dest_h));
+        ctx.blit_image(BLPoint(0, 0), image);
+        ctx.restore_clipping();
+      } else {
+        ctx.blit_image(BLPoint(0, 0), image);
+      }
+      break;
+    }
+    default: {  // kImageFitFill
+      ctx.blit_image(BLRect(0, 0, dest_w, dest_h), image);
+      break;
+    }
+  }
+
+  ctx.restore();
+}
+
 int32_t RenderLayers(LcBackendImage* image, const LcLayerDesc* layers,
                       int32_t layer_count) {
   auto* wrapper = reinterpret_cast<Blend2DImage*>(image);
@@ -312,6 +392,9 @@ int32_t RenderLayers(LcBackendImage* image, const LcLayerDesc* layers,
         break;
       case LC_LAYER_KIND_TEXT:
         RenderText(ctx, layer);
+        break;
+      case LC_LAYER_KIND_IMAGE:
+        RenderImage(ctx, layer);
         break;
       default:
         // Unknown/unsupported kinds are skipped rather than failing the
