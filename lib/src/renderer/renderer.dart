@@ -59,11 +59,11 @@ class Renderer {
     ];
 
     final nativeLayers = calloc<bindings.LcLayerDesc>(renderable.length);
-    // Native buffers allocated for ImageLayer bytes (see
+    // Native buffers allocated for ImageLayer bytes and gradient stops (see
     // fillNativeLayerDesc) — these live only for the duration of the
     // lc_render_scene call below, unlike text/font_family which are copied
     // inline into the struct itself.
-    final ownedBuffers = <Pointer<Uint8>>[];
+    final ownedBuffers = <Pointer>[];
     try {
       var nativeCount = 0;
       for (final resolved in renderable) {
@@ -91,9 +91,7 @@ class Renderer {
           outLen,
         );
         if (status != 0) {
-          throw RenderException(
-            'Native render failed with status $status',
-          );
+          throw RenderException('Native render failed with status $status');
         }
 
         final bytes = Uint8List.fromList(

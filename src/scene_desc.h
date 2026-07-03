@@ -22,7 +22,94 @@ typedef enum {
   LC_LAYER_KIND_RECTANGLE = 1,
   LC_LAYER_KIND_TEXT = 2,
   LC_LAYER_KIND_IMAGE = 3,
+  LC_LAYER_KIND_PATH = 4,
 } LcLayerKind;
+
+// Paint (fill/stroke source) kinds a shape can request. Kept as its own
+// type - decoupled from any specific shape's fields below - so future
+// geometry kinds (circles, paths...) can reuse LcPaintDesc verbatim instead
+// of growing per-shape color fields, and so this enum can later grow e.g.
+// LC_PAINT_KIND_PATTERN without touching existing call sites.
+typedef enum {
+  LC_PAINT_KIND_SOLID = 0,
+  LC_PAINT_KIND_LINEAR_GRADIENT = 1,
+  LC_PAINT_KIND_RADIAL_GRADIENT = 2,
+  LC_PAINT_KIND_CONIC_GRADIENT = 3,
+} LcPaintKind;
+
+// How a gradient behaves outside its defined 0..1 offset range. Only
+// meaningful when LcPaintDesc.kind is one of the *_GRADIENT kinds above.
+typedef enum {
+  LC_EXTEND_MODE_PAD = 0,
+  LC_EXTEND_MODE_REPEAT = 1,
+  LC_EXTEND_MODE_REFLECT = 2,
+} LcExtendMode;
+
+// A single color stop within a gradient's ramp. `offset` is 0..1 along the
+// gradient (mirrors lib/src/model/gradient.dart's GradientStop).
+typedef struct {
+  double offset;
+  uint32_t color_argb;
+} LcGradientStop;
+
+// Describes what to paint a shape's fill/stroke with - a solid color or a
+// gradient - independent of the shape's own geometry (mirrors
+// lib/src/model/paint.dart's LayerPaint/Gradient split). Embedded by value
+// inside a shape's fields below (e.g. LcLayerDesc.rect_paint).
+typedef struct {
+  int32_t kind;  // LcPaintKind
+
+  uint32_t solid_color_argb;  // meaningful when kind == LC_PAINT_KIND_SOLID.
+
+  int32_t extend_mode;  // LcExtendMode; meaningful for gradient kinds only.
+
+  // Gradient geometry, fractional (0..1) relative to the painted shape's
+  // own width/height - meaning depends on `kind`:
+  //   LINEAR_GRADIENT: x0, y0, x1, y1   (start point, end point)
+  //   RADIAL_GRADIENT: cx, cy, radius   (center point, radius; values[3]
+  //                                      unused)
+  //   CONIC_GRADIENT:  cx, cy, angle    (center point, start angle in
+  //                                      radians; values[3] unused)
+  double values[4];
+
+  // Gradient stops - option (b): pointer + count, same ownership pattern as
+  // LcLayerDesc.image_data/image_data_size below. Owned by the caller for
+  // the duration of a single lc_render_scene call only; meaningful for
+  // gradient kinds only (NULL/0 when kind == LC_PAINT_KIND_SOLID).
+  const LcGradientStop* stops;
+  int32_t stop_count;
+} LcPaintDesc;
+
+// A single step of a PathLayer's geometry (mirrors lib/src/model/path.dart's
+// PathCommand). Each command consumes a fixed number of doubles from the
+// parallel LcLayerDesc.path_coords array below:
+//   MOVE_TO/LINE_TO: 1 point (2 doubles: x, y)
+//   QUAD_TO:         2 points (4 doubles: control, end)
+//   CUBIC_TO:        3 points (6 doubles: control1, control2, end)
+//   ARC_TO:          7 doubles: rx, ry, x_axis_rotation (radians),
+//                    large_arc (0.0/1.0), sweep (0.0/1.0), end x, end y -
+//                    same endpoint parameterization as SVG's `A`/`a` path
+//                    command. The flags are packed as doubles (rather than
+//                    giving ARC_TO a different stride/type in path_coords)
+//                    so every command can be walked the same way: read N
+//                    doubles, where N depends only on the command byte.
+//   CLOSE:           0 doubles.
+typedef enum {
+  LC_PATH_COMMAND_MOVE_TO = 0,
+  LC_PATH_COMMAND_LINE_TO = 1,
+  LC_PATH_COMMAND_QUAD_TO = 2,
+  LC_PATH_COMMAND_CUBIC_TO = 3,
+  LC_PATH_COMMAND_CLOSE = 4,
+  LC_PATH_COMMAND_ARC_TO = 5,
+} LcPathCommand;
+
+// How overlapping/self-intersecting regions of a PathLayer are filled
+// (mirrors lib/src/model/path.dart's FillRule). Only meaningful for fills;
+// ignored for a stroke-only paint.
+typedef enum {
+  LC_FILL_RULE_NON_ZERO = 0,
+  LC_FILL_RULE_EVEN_ODD = 1,
+} LcFillRule;
 
 // Maximum size, in UTF-8 bytes, of a TextLayer's `text` field below. Text
 // longer than this is truncated on the Dart side before it ever crosses the
@@ -53,7 +140,7 @@ typedef struct {
 
   // RectangleLayer-specific fields (meaningful only when
   // kind == LC_LAYER_KIND_RECTANGLE).
-  uint32_t rect_color_argb;
+  LcPaintDesc rect_paint;    // shared by both fill and stroke below.
   int32_t rect_paint_style;  // 0 = fill, 1 = stroke, 2 = fillAndStroke
   double rect_stroke_width;
   double rect_corner_radius;
@@ -88,6 +175,29 @@ typedef struct {
   const uint8_t* image_data;
   int32_t image_data_size;
   int32_t image_fit;  // 0 = fill, 1 = contain, 2 = cover, 3 = none.
+
+  // PathLayer-specific fields (meaningful only when kind ==
+  // LC_LAYER_KIND_PATH). Mirrors lib/src/model/layers/path_layer.dart.
+  //
+  // Unlike rect_paint's gradient geometry (fractional, relative to
+  // width/height), path_coords below are absolute, in this layer's own
+  // local space - the same origin (0,0) RectangleLayer's own geometry
+  // uses. path_paint is still reused verbatim from LcPaintDesc: a
+  // gradient's own geometry inside it stays fractional relative to
+  // width/height regardless of what shape it's painting.
+  LcPaintDesc path_paint;
+  int32_t path_paint_style;  // 0 = fill, 1 = stroke, 2 = fillAndStroke
+  double path_stroke_width;
+  int32_t path_fill_rule;  // LcFillRule
+
+  // Path geometry - option (b): pointer + count, same ownership pattern as
+  // image_data/image_data_size and LcPaintDesc.stops above. Owned by the
+  // caller for the duration of a single lc_render_scene call only.
+  const uint8_t* path_commands;  // one LcPathCommand byte per entry.
+  int32_t path_command_count;
+  const double* path_coords;  // flattened x,y pairs, consumed in order as
+                               // path_commands is walked (see LcPathCommand).
+  int32_t path_coord_count;   // total doubles in path_coords.
 } LcLayerDesc;
 
 #endif  // LAYER_CANVAS_SCENE_DESC_H_

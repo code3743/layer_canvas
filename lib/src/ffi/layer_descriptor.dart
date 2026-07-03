@@ -7,11 +7,15 @@ import 'package:ffi/ffi.dart';
 
 import '../../layer_canvas_bindings_generated.dart' as bindings;
 import '../model/geometry.dart';
+import '../model/gradient.dart';
 import '../model/image_source.dart';
 import '../model/layer.dart';
 import '../model/layers/image_layer.dart';
+import '../model/layers/path_layer.dart';
 import '../model/layers/rectangle_layer.dart';
 import '../model/layers/text_layer.dart';
+import '../model/paint.dart';
+import '../model/path.dart';
 import '../model/transform.dart';
 
 /// Fills a native [bindings.LcLayerDesc] slot from a Dart [Layer].
@@ -21,8 +25,9 @@ import '../model/transform.dart';
 /// [flattenScene][flatten], not necessarily `layer.transform`/`layer.opacity`
 /// directly. [transform] is always in canonical form (`anchor` is `(0,0)`).
 ///
-/// An [ImageLayer] allocates a native buffer for its encoded bytes and
-/// appends it to [ownedBuffers] — unlike `text`/`font_family`, image bytes
+/// An [ImageLayer] allocates a native buffer for its encoded bytes, and a
+/// [RectangleLayer] painted with a [Gradient] allocates one for its stops;
+/// both are appended to [ownedBuffers] — unlike `text`/`font_family`, these
 /// aren't copied into a fixed-size inline array, so the caller must
 /// `calloc.free` every entry in [ownedBuffers] once the render call that
 /// reads them has returned (see `Renderer._renderSync`).
@@ -39,7 +44,7 @@ bool fillNativeLayerDesc(
   Layer layer, {
   required LayerTransform transform,
   required double opacity,
-  required List<Pointer<Uint8>> ownedBuffers,
+  required List<Pointer> ownedBuffers,
 }) {
   final size = layer.size ?? Size2D.zero;
 
@@ -56,7 +61,7 @@ bool fillNativeLayerDesc(
 
   if (layer is RectangleLayer) {
     desc.kind = bindings.LcLayerKind.LC_LAYER_KIND_RECTANGLE.value;
-    desc.rect_color_argb = layer.paint.color.value;
+    _fillPaintDesc(desc.rect_paint, layer.paint, ownedBuffers);
     desc.rect_paint_style = layer.paint.style.index;
     desc.rect_stroke_width = layer.paint.strokeWidth;
     desc.rect_corner_radius = layer.cornerRadius;
@@ -107,8 +112,151 @@ bool fillNativeLayerDesc(
     return true;
   }
 
+  if (layer is PathLayer) {
+    desc.kind = bindings.LcLayerKind.LC_LAYER_KIND_PATH.value;
+    _fillPaintDesc(desc.path_paint, layer.paint, ownedBuffers);
+    desc.path_paint_style = layer.paint.style.index;
+    desc.path_stroke_width = layer.paint.strokeWidth;
+    desc.path_fill_rule = layer.fillRule.index;
+    _fillPathGeometry(desc, layer.path, ownedBuffers);
+    return true;
+  }
+
   desc.kind = bindings.LcLayerKind.LC_LAYER_KIND_UNKNOWN.value;
   return false;
+}
+
+/// Fills a native [bindings.LcPaintDesc] slot from a [LayerPaint] — solid
+/// [LayerPaint.color] when [LayerPaint.gradient] is unset, otherwise the
+/// gradient's kind, geometry, extend mode and stops.
+///
+/// Stops are copied into a native buffer appended to [ownedBuffers] (option
+/// (b): pointer + count, same ownership pattern as `ImageLayer`'s encoded
+/// bytes above) rather than a fixed-size inline array, since a gradient may
+/// carry an arbitrary number of stops.
+void _fillPaintDesc(
+  bindings.LcPaintDesc desc,
+  LayerPaint paint,
+  List<Pointer> ownedBuffers,
+) {
+  final gradient = paint.gradient;
+  if (gradient == null) {
+    desc.kind = bindings.LcPaintKind.LC_PAINT_KIND_SOLID.value;
+    desc.solid_color_argb = paint.color.value;
+    desc.stop_count = 0;
+    return;
+  }
+
+  switch (gradient) {
+    case LinearGradient():
+      desc.kind = bindings.LcPaintKind.LC_PAINT_KIND_LINEAR_GRADIENT.value;
+      desc.values[0] = gradient.start.x;
+      desc.values[1] = gradient.start.y;
+      desc.values[2] = gradient.end.x;
+      desc.values[3] = gradient.end.y;
+    case RadialGradient():
+      desc.kind = bindings.LcPaintKind.LC_PAINT_KIND_RADIAL_GRADIENT.value;
+      desc.values[0] = gradient.center.x;
+      desc.values[1] = gradient.center.y;
+      desc.values[2] = gradient.radius;
+    case ConicGradient():
+      desc.kind = bindings.LcPaintKind.LC_PAINT_KIND_CONIC_GRADIENT.value;
+      desc.values[0] = gradient.center.x;
+      desc.values[1] = gradient.center.y;
+      desc.values[2] = gradient.angle;
+  }
+
+  desc.extend_mode = switch (gradient.extendMode) {
+    GradientExtendMode.pad => bindings.LcExtendMode.LC_EXTEND_MODE_PAD.value,
+    GradientExtendMode.repeat =>
+      bindings.LcExtendMode.LC_EXTEND_MODE_REPEAT.value,
+    GradientExtendMode.reflect =>
+      bindings.LcExtendMode.LC_EXTEND_MODE_REFLECT.value,
+  };
+
+  final stops = gradient.stops;
+  final stopsBuffer = calloc<bindings.LcGradientStop>(stops.length);
+  for (var i = 0; i < stops.length; i++) {
+    stopsBuffer[i].offset = stops[i].offset;
+    stopsBuffer[i].color_argb = stops[i].color.value;
+  }
+  ownedBuffers.add(stopsBuffer);
+
+  desc.stops = stopsBuffer;
+  desc.stop_count = stops.length;
+}
+
+/// Fills a native [bindings.LcLayerDesc]'s `path_commands`/`path_coords`
+/// slots from a [LayerPath] — one command byte per [PathCommand], and its
+/// points flattened into a parallel `x, y` array (see [LcPathCommand] in
+/// `scene_desc.h` for how many points each command consumes).
+///
+/// Both arrays are copied into native buffers appended to [ownedBuffers]
+/// (option (b): pointer + count, same ownership pattern as [ImageLayer]'s
+/// encoded bytes and a gradient's stops above), since a path may carry an
+/// arbitrary number of commands/points.
+void _fillPathGeometry(
+  bindings.LcLayerDesc desc,
+  LayerPath path,
+  List<Pointer> ownedBuffers,
+) {
+  final commandBytes = <int>[];
+  final coords = <double>[];
+
+  void addPoint(Point2D point) {
+    coords.add(point.x);
+    coords.add(point.y);
+  }
+
+  for (final command in path.commands) {
+    switch (command) {
+      case MoveTo(:final point):
+        commandBytes.add(bindings.LcPathCommand.LC_PATH_COMMAND_MOVE_TO.value);
+        addPoint(point);
+      case LineTo(:final point):
+        commandBytes.add(bindings.LcPathCommand.LC_PATH_COMMAND_LINE_TO.value);
+        addPoint(point);
+      case QuadraticBezierTo(:final control, :final point):
+        commandBytes.add(bindings.LcPathCommand.LC_PATH_COMMAND_QUAD_TO.value);
+        addPoint(control);
+        addPoint(point);
+      case CubicBezierTo(:final control1, :final control2, :final point):
+        commandBytes.add(bindings.LcPathCommand.LC_PATH_COMMAND_CUBIC_TO.value);
+        addPoint(control1);
+        addPoint(control2);
+        addPoint(point);
+      case ArcTo(
+        :final radiusX,
+        :final radiusY,
+        :final xAxisRotation,
+        :final largeArc,
+        :final sweep,
+        :final point,
+      ):
+        commandBytes.add(bindings.LcPathCommand.LC_PATH_COMMAND_ARC_TO.value);
+        coords.add(radiusX);
+        coords.add(radiusY);
+        coords.add(xAxisRotation);
+        coords.add(largeArc ? 1.0 : 0.0);
+        coords.add(sweep ? 1.0 : 0.0);
+        addPoint(point);
+      case ClosePath():
+        commandBytes.add(bindings.LcPathCommand.LC_PATH_COMMAND_CLOSE.value);
+    }
+  }
+
+  final commandsBuffer = calloc<Uint8>(commandBytes.length);
+  commandsBuffer.asTypedList(commandBytes.length).setAll(0, commandBytes);
+  ownedBuffers.add(commandsBuffer);
+
+  final coordsBuffer = calloc<Double>(coords.length);
+  coordsBuffer.asTypedList(coords.length).setAll(0, coords);
+  ownedBuffers.add(coordsBuffer);
+
+  desc.path_commands = commandsBuffer;
+  desc.path_command_count = commandBytes.length;
+  desc.path_coords = coordsBuffer;
+  desc.path_coord_count = coords.length;
 }
 
 /// Resolves a [LayerImageSource] to its raw encoded bytes. Done on the Dart

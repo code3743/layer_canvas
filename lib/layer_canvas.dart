@@ -1,12 +1,15 @@
 export 'src/model/color.dart';
 export 'src/model/geometry.dart';
+export 'src/model/gradient.dart';
 export 'src/model/group.dart';
 export 'src/model/image_source.dart';
 export 'src/model/layer.dart';
 export 'src/model/layers/image_layer.dart';
+export 'src/model/layers/path_layer.dart';
 export 'src/model/layers/rectangle_layer.dart';
 export 'src/model/layers/text_layer.dart';
 export 'src/model/paint.dart';
+export 'src/model/path.dart';
 export 'src/model/scene.dart';
 export 'src/model/transform.dart';
 export 'src/renderer/font_registry.dart';
