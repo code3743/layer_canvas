@@ -17,6 +17,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       # layer_canvas compiles Blend2D from C++ source via a native build
       # hook (hook/build.dart) using package:native_toolchain_c, which on
