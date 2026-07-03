@@ -197,6 +197,103 @@ void RenderRectangle(BLContext& ctx, const LcLayerDesc& layer) {
   ctx.restore();
 }
 
+// Horizontal text alignment values a TextLayer can request (mirrors
+// lib/src/model/layers/text_layer.dart's TextAlignment).
+constexpr int32_t kTextAlignLeft = 0;
+constexpr int32_t kTextAlignCenter = 1;
+constexpr int32_t kTextAlignRight = 2;
+
+// Weights at or above this threshold render with the embedded bold face;
+// everything else uses regular (mirrors lib/src/model/layers/text_layer.dart's
+// TextWeight, which uses the same 100-900 CSS/OpenType scale).
+constexpr int32_t kBoldWeightThreshold = 600;
+
+// Looks up layer.font_family in the user font registry first. When
+// LC_EMBED_DEFAULT_FONT is defined, falls back to one of the two embedded
+// Roboto weights if no font_family is set, or if it doesn't match any
+// registered font (e.g. a typo — rendering with the default is friendlier
+// than dropping the layer's text entirely). Builds without the embedded
+// font return an empty BLFontFace in that fallback case; RenderText treats
+// an empty face as "nothing to draw" rather than failing the render.
+// Returned by value: BLFontFace is a ref-counted handle, so copying it
+// while holding the lock (rather than returning a reference into the map)
+// is cheap and avoids racing a concurrent lc_font_register/unregister.
+BLFontFace ResolveFontFace(const LcLayerDesc& layer) {
+  if (layer.font_family_length > 0) {
+    const std::string name(reinterpret_cast<const char*>(layer.font_family),
+                            static_cast<size_t>(layer.font_family_length));
+    std::lock_guard<std::mutex> lock(FontRegistryMutex());
+    const auto it = FontRegistry().find(name);
+    if (it != FontRegistry().end()) return it->second;
+  }
+#ifdef LC_EMBED_DEFAULT_FONT
+  return layer.text_weight >= kBoldWeightThreshold ? BoldFace() : RegularFace();
+#else
+  return BLFontFace();
+#endif
+}
+
+void RenderText(BLContext& ctx, const LcLayerDesc& layer) {
+  // Same pivot transform as RenderRectangle - see the comment there.
+  ctx.save();
+  ctx.translate(layer.pos_x, layer.pos_y);
+  ctx.translate(layer.anchor_x * layer.width, layer.anchor_y * layer.height);
+  ctx.rotate(layer.rotation);
+  ctx.scale(layer.scale_x, layer.scale_y);
+  ctx.translate(-layer.anchor_x * layer.width, -layer.anchor_y * layer.height);
+  ctx.set_global_alpha(layer.opacity);
+
+  const BLFontFace face = ResolveFontFace(layer);
+  BLFont font;
+  if (font.create_from_face(face, static_cast<float>(layer.text_font_size)) !=
+      BL_SUCCESS) {
+    // No usable font - no embedded default in this build (see
+    // LC_EMBED_DEFAULT_FONT) and font_family didn't match anything
+    // registered via lc_font_register. Skip this layer's text rather than
+    // fail the whole render.
+    ctx.restore();
+    return;
+  }
+
+  const char* text = reinterpret_cast<const char*>(layer.text);
+  const size_t text_size = static_cast<size_t>(layer.text_length);
+
+  // Shape once up front to measure the laid-out width for alignment, then
+  // draw that same shaped buffer with fill_glyph_run below - fill_utf8_text
+  // would reshape identical work internally.
+  BLGlyphBuffer glyph_buffer;
+  glyph_buffer.set_utf8_text(text, text_size);
+  font.shape(glyph_buffer);
+
+  BLTextMetrics text_metrics;
+  font.get_text_metrics(glyph_buffer, text_metrics);
+
+  double x = 0.0;
+  if (layer.width > 0.0) {
+    const double text_width = text_metrics.advance.x;
+    if (layer.text_align == kTextAlignCenter) {
+      x = (layer.width - text_width) / 2.0;
+    } else if (layer.text_align == kTextAlignRight) {
+      x = layer.width - text_width;
+    }
+  }
+
+  // Vertically centered within the box when a height is given; otherwise
+  // the text's top sits at the layer's position.
+  const BLFontMetrics& font_metrics = font.metrics();
+  const double y =
+      layer.height > 0.0
+          ? (layer.height - (font_metrics.ascent + font_metrics.descent)) /
+                    2.0 +
+                font_metrics.ascent
+          : font_metrics.ascent;
+
+  ctx.fill_glyph_run(BLPoint(x, y), font, glyph_buffer.glyph_run(),
+                      BLRgba32(layer.text_color_argb));
+
+  ctx.restore();
+}
+
 int32_t RenderLayers(LcBackendImage* image, const LcLayerDesc* layers,
                       int32_t layer_count) {
   auto* wrapper = reinterpret_cast<Blend2DImage*>(image);
@@ -212,6 +309,9 @@ int32_t RenderLayers(LcBackendImage* image, const LcLayerDesc* layers,
     switch (layer.kind) {
       case LC_LAYER_KIND_RECTANGLE:
         RenderRectangle(ctx, layer);
+        break;
+      case LC_LAYER_KIND_TEXT:
+        RenderText(ctx, layer);
         break;
       default:
         // Unknown/unsupported kinds are skipped rather than failing the
