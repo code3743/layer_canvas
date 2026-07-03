@@ -67,3 +67,12 @@ extern "C" int32_t lc_render_scene(int32_t width, int32_t height,
   backend->destroy(backend_image);
   return status;
 }
+
+extern "C" int32_t lc_font_register(const char* name, const uint8_t* data,
+                                     size_t data_size) {
+  return ActiveBackend()->register_font(name, data, data_size);
+}
+
+extern "C" int32_t lc_font_unregister(const char* name) {
+  return ActiveBackend()->unregister_font(name);
+}
