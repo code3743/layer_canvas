@@ -1,8 +1,9 @@
 name: layer_canvas
 description: >-
-  High-performance 2D compositing engine backed by Blend2D via Dart FFI.
-  Compose typed Layers into a Scene and render to PNG on Android, iOS,
-  macOS, Linux and Windows at native speed.
+  High-performance 2D compositing engine for Dart and Flutter, using
+  Blend2D internally as its rasterization backend via Dart FFI. Compose
+  typed Layers into a Scene and render to PNG on Android, iOS, macOS,
+  Linux and Windows at native speed.
 version: 0.0.1
 
 environment:
