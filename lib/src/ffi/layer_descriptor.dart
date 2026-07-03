@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ffi';
 
 import '../../layer_canvas_bindings_generated.dart' as bindings;
 import '../model/geometry.dart';

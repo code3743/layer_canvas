@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:ffi';
 
+import 'package:ffi/ffi.dart';
 import 'package:layer_canvas/layer_canvas.dart';
 import 'package:layer_canvas/layer_canvas_bindings_generated.dart'
     as bindings;
