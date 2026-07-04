@@ -208,6 +208,30 @@ void main() {
       expect(bytes.take(_pngSignature.length).toList(), _pngSignature);
     });
 
+    test(
+      'renders an imported SVG document (shapes + gradient) end to end',
+      () async {
+        final doc = SvgDocument.parse('''
+<svg viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff0000"/>
+      <stop offset="1" stop-color="#0000ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" fill="url(#bg)"/>
+  <circle cx="50" cy="50" r="30" fill="white" stroke="black" stroke-width="2"/>
+  <path d="M20,80 L50,20 L80,80 Z" fill="green" fill-opacity="0.5"/>
+</svg>
+''');
+
+        final scene = Scene(width: 100, height: 100)..add(doc.toGroup());
+
+        final bytes = await renderer.render(scene);
+
+        expect(bytes.take(_pngSignature.length).toList(), _pngSignature);
+      },
+    );
 
     test('renderToFile writes the same bytes render() would return', () async {
       final scene = Scene(width: 8, height: 8)
