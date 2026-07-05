@@ -127,7 +127,7 @@ and bundled automatically via Dart's Native Assets mechanism.
 The [quick start](#quick-start) above is the whole trivial case. For
 everything else — gradients, paths and polygons, SVG import, images,
 custom fonts, groups, the complete API reference, architecture, and how to
-build/test/benchmark the package — see **[`doc/GUIDE.md`](doc/GUIDE.md)**.
+build/test the package — see **[`doc/GUIDE.md`](doc/GUIDE.md)**.
 
 ## License
 
