@@ -23,18 +23,23 @@ RectangleLayer _rect({
 
 void main() {
   group('flattenScene', () {
-    test('passes through a flat scene, sorted by zIndex, invisible dropped', () {
-      final back = _rect(zIndex: 0);
-      final hidden = _rect(zIndex: 1, visible: false);
-      final front = _rect(zIndex: 2);
+    test(
+      'passes through a flat scene, sorted by zIndex, invisible dropped',
+      () {
+        final back = _rect(zIndex: 0);
+        final hidden = _rect(zIndex: 1, visible: false);
+        final front = _rect(zIndex: 2);
 
-      final resolved = flattenScene([front, hidden, back]);
+        final resolved = flattenScene([front, hidden, back]);
 
-      expect(resolved.map((r) => r.source), [back, front]);
-    });
+        expect(resolved.map((r) => r.source), [back, front]);
+      },
+    );
 
     test('a group translates every child by its own position', () {
-      final child = _rect(transform: const LayerTransform(position: Point2D(5, 5)));
+      final child = _rect(
+        transform: const LayerTransform(position: Point2D(5, 5)),
+      );
       final group = Group(
         transform: const LayerTransform(position: Point2D(100, 200)),
         children: [child],
@@ -62,7 +67,9 @@ void main() {
     });
 
     test('nested groups compose position through both levels', () {
-      final child = _rect(transform: const LayerTransform(position: Point2D(1, 1)));
+      final child = _rect(
+        transform: const LayerTransform(position: Point2D(1, 1)),
+      );
       final inner = Group(
         transform: const LayerTransform(position: Point2D(10, 10)),
         children: [child],
@@ -80,9 +87,14 @@ void main() {
     test('a group rotation carries a child\'s local offset with it', () {
       // A 90° (clockwise) group rotation should carry a child positioned
       // 10px to its "right" (local +x) around to local +y in world space.
-      final child = _rect(transform: const LayerTransform(position: Point2D(10, 0)));
+      final child = _rect(
+        transform: const LayerTransform(position: Point2D(10, 0)),
+      );
       final group = Group(
-        transform: LayerTransform(position: Point2D.zero, rotation: math.pi / 2),
+        transform: LayerTransform(
+          position: Point2D.zero,
+          rotation: math.pi / 2,
+        ),
         children: [child],
       );
 

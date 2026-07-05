@@ -29,8 +29,10 @@ void main() {
       final scene = Scene(width: 100, height: 100)
         ..add(RectangleLayer(size: const Size2D(10, 10)));
 
-      expect(() => scene.layers.add(RectangleLayer(size: const Size2D(1, 1))),
-          throwsUnsupportedError);
+      expect(
+        () => scene.layers.add(RectangleLayer(size: const Size2D(1, 1))),
+        throwsUnsupportedError,
+      );
     });
 
     test('remove deletes by id and reports whether it found one', () {
@@ -62,8 +64,14 @@ void main() {
     });
 
     test('rejects non-positive dimensions', () {
-      expect(() => Scene(width: 0, height: 100), throwsA(isA<AssertionError>()));
-      expect(() => Scene(width: 100, height: -1), throwsA(isA<AssertionError>()));
+      expect(
+        () => Scene(width: 0, height: 100),
+        throwsA(isA<AssertionError>()),
+      );
+      expect(
+        () => Scene(width: 100, height: -1),
+        throwsA(isA<AssertionError>()),
+      );
     });
   });
 
@@ -90,10 +98,14 @@ void main() {
     });
 
     test('rejects opacity outside [0, 1]', () {
-      expect(() => RectangleLayer(size: const Size2D(1, 1), opacity: 1.5),
-          throwsA(isA<AssertionError>()));
-      expect(() => RectangleLayer(size: const Size2D(1, 1), opacity: -0.1),
-          throwsA(isA<AssertionError>()));
+      expect(
+        () => RectangleLayer(size: const Size2D(1, 1), opacity: 1.5),
+        throwsA(isA<AssertionError>()),
+      );
+      expect(
+        () => RectangleLayer(size: const Size2D(1, 1), opacity: -0.1),
+        throwsA(isA<AssertionError>()),
+      );
     });
   });
 
@@ -101,13 +113,50 @@ void main() {
     test('exposes its own properties through type/properties', () {
       final layer = RectangleLayer(
         size: const Size2D(200, 100),
-        paint: const LayerPaint(color: Color32.white, style: LayerPaintStyle.fill),
+        paint: const LayerPaint(
+          color: Color32.white,
+          style: LayerPaintStyle.fill,
+        ),
         cornerRadius: 12,
       );
 
       expect(layer.type, 'rectangle');
       expect(layer.properties['cornerRadius'], 12);
       expect((layer.properties['paint'] as LayerPaint).color, Color32.white);
+    });
+
+    test('.filled builds the same size/paint/cornerRadius as the main '
+        'constructor', () {
+      final filled = RectangleLayer.filled(
+        width: 200,
+        height: 100,
+        color: Color32.white,
+        cornerRadius: 12,
+      );
+
+      expect(filled.size, const Size2D(200, 100));
+      expect(filled.paint.color, Color32.white);
+      expect(filled.paint.style, LayerPaintStyle.fill);
+      expect(filled.cornerRadius, 12);
+    });
+
+    test('.filled forwards transform/opacity/zIndex/visible/id', () {
+      final filled = RectangleLayer.filled(
+        width: 10,
+        height: 10,
+        color: Color32.black,
+        id: 'my-rect',
+        transform: const LayerTransform(position: Point2D(5, 5)),
+        opacity: 0.5,
+        zIndex: 2,
+        visible: false,
+      );
+
+      expect(filled.id, 'my-rect');
+      expect(filled.transform.position, const Point2D(5, 5));
+      expect(filled.opacity, 0.5);
+      expect(filled.zIndex, 2);
+      expect(filled.visible, isFalse);
     });
   });
 

@@ -58,7 +58,9 @@ void main() {
 
   buffer
     ..writeln()
-    ..writeln('#endif  // LAYER_CANVAS_BACKEND_BLEND2D_FONTS_EMBEDDED_FONTS_H_');
+    ..writeln(
+      '#endif  // LAYER_CANVAS_BACKEND_BLEND2D_FONTS_EMBEDDED_FONTS_H_',
+    );
 
   File(_outputPath).writeAsStringSync(buffer.toString());
   stdout.writeln('Wrote $_outputPath');

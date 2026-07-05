@@ -29,6 +29,7 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 /build/
 /coverage/
+benchmark_dart_ui/build/
 
 # FVM Version Cache
 .fvm/

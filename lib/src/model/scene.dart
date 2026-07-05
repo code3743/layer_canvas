@@ -17,12 +17,9 @@ class Scene {
 
   final List<Layer> _layers = [];
 
-  Scene({
-    required this.width,
-    required this.height,
-    this.background,
-  })  : assert(width > 0, 'width must be > 0'),
-        assert(height > 0, 'height must be > 0');
+  Scene({required this.width, required this.height, this.background})
+    : assert(width > 0, 'width must be > 0'),
+      assert(height > 0, 'height must be > 0');
 
   /// Layers in insertion order. Stacking order for compositing is
   /// determined by [Layer.zIndex] (stable sort), not by this list's order.

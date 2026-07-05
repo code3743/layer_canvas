@@ -58,11 +58,11 @@ class TextLayer extends Layer {
 
   @override
   Map<String, Object?> get properties => {
-        'text': text,
-        'fontFamily': fontFamily,
-        'fontSize': fontSize,
-        'color': color,
-        'align': align.name,
-        'fontWeight': fontWeight.value,
-      };
+    'text': text,
+    'fontFamily': fontFamily,
+    'fontSize': fontSize,
+    'color': color,
+    'align': align.name,
+    'fontWeight': fontWeight.value,
+  };
 }
