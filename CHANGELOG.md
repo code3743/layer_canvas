@@ -1,3 +1,28 @@
+## 0.1.0-beta.3
+
+New layer capabilities and SVG import.
+
+* **Gradients** — `LinearGradient`, `RadialGradient`, `ConicGradient`; any
+  `RectangleLayer` or `PathLayer` can be painted with a gradient instead of
+  a solid color via `LayerPaint.gradient`.
+* **`PathLayer`** — arbitrary vector geometry: lines, quadratic/cubic
+  Bézier curves, arcs (SVG-compatible `ArcTo`), and closed subpaths, with
+  `FillRule.nonZero`/`evenOdd`. `LayerPath.polygon`, `.polyline`, `.circle`,
+  and `.ellipse` cover the common cases; `PathLayer.filled` is a solid-fill
+  shortcut.
+* **SVG import** — `SvgDocument.parse` reads shapes, gradients, and paths
+  from an SVG string; `.toGroup()` turns the result into layers that
+  compose into a `Scene` like any other layer.
+* **Multi-weight fonts** — `FontRegistry.register`/`unregister` now take a
+  `weight`, so a single family can have several weights registered at
+  once; `TextLayer` renders with whichever registered weight is
+  numerically closest to its own `fontWeight`.
+* `RectangleLayer.filled` — a plain width/height/color constructor for the
+  common solid-fill case, alongside the existing `PathLayer.filled`.
+* Added `package:image` and `dart:ui` benchmarks alongside the existing
+  Blend2D one, for side-by-side comparison (see the README's "Running
+  benchmarks" section).
+
 ## 0.1.0-beta.2
 
 Documentation-only release: updated README with Flutter integration
