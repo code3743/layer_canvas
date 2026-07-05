@@ -43,9 +43,11 @@ abstract class Layer {
     this.opacity = 1.0,
     this.zIndex = 0,
     this.visible = true,
-  })  : assert(opacity >= 0.0 && opacity <= 1.0,
-            'opacity must be between 0.0 and 1.0'),
-        id = id ?? 'layer-${_nextLayerId++}';
+  }) : assert(
+         opacity >= 0.0 && opacity <= 1.0,
+         'opacity must be between 0.0 and 1.0',
+       ),
+       id = id ?? 'layer-${_nextLayerId++}';
 
   /// Discriminator sent across the FFI boundary so the native backend knows
   /// how to interpret [properties]. Must be stable and unique per subclass.

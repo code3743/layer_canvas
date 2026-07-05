@@ -14,10 +14,11 @@ class Color32 {
   const Color32(this.value);
 
   const Color32.fromARGB(int a, int r, int g, int b)
-      : value = ((a & 0xff) << 24) |
-            ((r & 0xff) << 16) |
-            ((g & 0xff) << 8) |
-            (b & 0xff);
+    : value =
+          ((a & 0xff) << 24) |
+          ((r & 0xff) << 16) |
+          ((g & 0xff) << 8) |
+          (b & 0xff);
 
   const Color32.fromRGB(int r, int g, int b) : this.fromARGB(0xff, r, g, b);
 
@@ -45,6 +46,5 @@ class Color32 {
   int get hashCode => value.hashCode;
 
   @override
-  String toString() =>
-      'Color32(0x${value.toRadixString(16).padLeft(8, '0')})';
+  String toString() => 'Color32(0x${value.toRadixString(16).padLeft(8, '0')})';
 }

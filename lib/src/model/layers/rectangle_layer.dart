@@ -1,6 +1,8 @@
+import '../color.dart';
 import '../geometry.dart';
 import '../layer.dart';
 import '../paint.dart';
+import '../transform.dart';
 
 /// A filled and/or stroked rectangle with optional rounded corners.
 ///
@@ -29,12 +31,43 @@ class RectangleLayer extends Layer {
     super.visible,
   }) : super(size: size);
 
+  /// A solid-filled rectangle — [width]/[height]/[color] directly, without
+  /// building [Size2D] or [LayerPaint] yourself. For a stroke, a gradient,
+  /// or fill+stroke together, use the main constructor with an explicit
+  /// [paint].
+  ///
+  /// ```dart
+  /// RectangleLayer.filled(width: 800, height: 600, color: Color32.fromRGB(30, 30, 30))
+  /// ```
+  factory RectangleLayer.filled({
+    required double width,
+    required double height,
+    required Color32 color,
+    double cornerRadius = 0,
+    String? id,
+    LayerTransform transform = const LayerTransform(),
+    double opacity = 1.0,
+    int zIndex = 0,
+    bool visible = true,
+  }) {
+    return RectangleLayer(
+      size: Size2D(width, height),
+      paint: LayerPaint(color: color),
+      cornerRadius: cornerRadius,
+      id: id,
+      transform: transform,
+      opacity: opacity,
+      zIndex: zIndex,
+      visible: visible,
+    );
+  }
+
   @override
   String get type => 'rectangle';
 
   @override
   Map<String, Object?> get properties => {
-        'paint': paint,
-        'cornerRadius': cornerRadius,
-      };
+    'paint': paint,
+    'cornerRadius': cornerRadius,
+  };
 }

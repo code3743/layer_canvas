@@ -32,8 +32,5 @@ class ImageLayer extends Layer {
   String get type => 'image';
 
   @override
-  Map<String, Object?> get properties => {
-        'source': source,
-        'fit': fit.name,
-      };
+  Map<String, Object?> get properties => {'source': source, 'fit': fit.name};
 }

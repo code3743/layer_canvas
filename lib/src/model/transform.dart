@@ -33,6 +33,7 @@ class LayerTransform {
   }
 
   @override
-  String toString() => 'LayerTransform(position: $position, '
+  String toString() =>
+      'LayerTransform(position: $position, '
       'rotation: $rotation, scale: $scale, anchor: $anchor)';
 }

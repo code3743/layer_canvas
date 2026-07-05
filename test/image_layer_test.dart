@@ -123,17 +123,18 @@ void main() {
     });
 
     test('other layers still composite on top of it', () async {
-      final scene = Scene(
-        width: 16,
-        height: 12,
-        background: LayerImageSource.memory(sourcePng),
-      )..add(
-          TextLayer(
-            text: 'x',
-            size: const Size2D(16, 12),
-            color: Color32.white,
-          ),
-        );
+      final scene =
+          Scene(
+            width: 16,
+            height: 12,
+            background: LayerImageSource.memory(sourcePng),
+          )..add(
+            TextLayer(
+              text: 'x',
+              size: const Size2D(16, 12),
+              color: Color32.white,
+            ),
+          );
 
       final bytes = await renderer.render(scene);
 
@@ -144,9 +145,7 @@ void main() {
       final scene = Scene(
         width: 16,
         height: 12,
-        background: LayerImageSource.memory(
-          Uint8List.fromList([1, 2, 3]),
-        ),
+        background: LayerImageSource.memory(Uint8List.fromList([1, 2, 3])),
       );
 
       final bytes = await renderer.render(scene);
