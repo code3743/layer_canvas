@@ -19,9 +19,6 @@ New layer capabilities and SVG import.
   numerically closest to its own `fontWeight`.
 * `RectangleLayer.filled` — a plain width/height/color constructor for the
   common solid-fill case, alongside the existing `PathLayer.filled`.
-* Added `package:image` and `dart:ui` benchmarks alongside the existing
-  Blend2D one, for side-by-side comparison (see the README's "Running
-  benchmarks" section).
 
 ## 0.1.0-beta.2
 

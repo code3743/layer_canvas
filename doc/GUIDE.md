@@ -2,7 +2,7 @@
 
 Back to the [project README](../README.md) for the quick start and
 installation. This page covers every layer type, the full public API, and
-how to build/test/benchmark the package.
+how to build/test the package.
 
 **Contents**
 
@@ -32,8 +32,6 @@ how to build/test/benchmark the package.
 - [Architecture](#architecture)
 - [Building from source](#building-from-source)
 - [Running tests](#running-tests)
-- [Running benchmarks](#running-benchmarks)
-  - [Cross-tool comparison](#cross-tool-comparison)
 
 ## Usage
 
@@ -563,39 +561,6 @@ dart run ffigen --config ffigen.yaml
 ```sh
 dart test
 ```
-
-## Running benchmarks
-
-```sh
-dart run benchmark/render_benchmark.dart
-```
-
-### Cross-tool comparison
-
-The same six scenes (`empty`, `singleRect`, `watermark`, `rects10`,
-`rects50`, `largeCanvas10` — same canvas sizes, positions, colors, corner
-radii, and one rotated/translucent shape) are rendered through three
-different rendering paths, so the reports can be compared side by side:
-
-```sh
-# layer_canvas (Blend2D via FFI)
-dart run benchmark/render_benchmark.dart
-
-# package:image — pure Dart, no native backend
-dart run benchmark/image_package_benchmark.dart
-
-# dart:ui — Flutter's own Canvas/Skia, rasterized headlessly
-cd benchmark_dart_ui
-flutter pub get
-flutter test test/dart_ui_benchmark_test.dart
-```
-
-`benchmark_dart_ui/` is a separate, standalone Flutter project (its own
-`pubspec.yaml`) — the only place in this repo that depends on Flutter.
-`dart:ui` can't rasterize outside a Flutter engine, and `layer_canvas`
-itself stays Flutter-free (see the [project README](../README.md)), so
-that comparison couldn't live in the main package's own `dev_dependencies`
-without contradicting that.
 
 ---
 
