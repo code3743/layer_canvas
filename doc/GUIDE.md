@@ -1,6 +1,6 @@
 # layer_canvas — full guide
 
-Back to the [project README](../README.md) for the quick start and
+Back to the [project README](https://github.com/code3743/layer_canvas#readme) for the quick start and
 installation. This page covers every layer type, the full public API, and
 how to build/test the package.
 
@@ -536,7 +536,7 @@ LayerImageSource.memory(bytes) // Uint8List of encoded image data
 
 ## Architecture
 
-![Architecture: Dart public API → Dart FFI (lc_render_scene) → C++ engine → LcGraphicsBackend vtable → Blend2D backend](../architecture.png)
+![Architecture: Dart public API → Dart FFI (lc_render_scene) → C++ engine → LcGraphicsBackend vtable → Blend2D backend](https://raw.githubusercontent.com/code3743/layer_canvas/main/architecture.png)
 
 The engine core (`engine.cpp`) is decoupled from Blend2D through the
 `LcGraphicsBackend` function-pointer table defined in `src/backend/backend.h`.
@@ -564,4 +564,4 @@ dart test
 
 ---
 
-Back to the [project README](../README.md).
+Back to the [project README](https://github.com/code3743/layer_canvas#readme).

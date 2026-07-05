@@ -1,6 +1,6 @@
 # layer_canvas
 
-![layer_canvas — native 2D rendering for Dart & Flutter](doc/hero.png)
+![layer_canvas — native 2D rendering for Dart & Flutter](https://raw.githubusercontent.com/code3743/layer_canvas/main/doc/hero.png)
 
 A high-performance 2D compositing engine for Flutter and Dart, using
 [Blend2D](https://blend2d.com) internally as its rasterization backend via
@@ -58,7 +58,7 @@ the same in a `dart run` script, a server, or a Flutter app.
 
 Real-world use case — a GPS photo watermark, built entirely in plain Dart:
 
-<img src="doc/watermark_demo.png" alt="A photo with a native GPS watermark overlay rendered by layer_canvas" width="360" />
+<img src="https://raw.githubusercontent.com/code3743/layer_canvas/main/doc/watermark_demo.png" alt="A photo with a native GPS watermark overlay rendered by layer_canvas" width="360" />
 
 ```dart
 // Abbreviated — see example/ for the complete, runnable version.
@@ -73,9 +73,9 @@ final scene = Scene(width: 480, height: 640, background: photoSource)
   ..add(TextLayer(text: location.coordinatesLabel, color: Color32.fromRGB(245, 245, 245)));
 ```
 
-See the full runnable version in [`example/`](example/) and every other
-layer type (gradients, paths, SVG import, text, images, groups) in the
-[full guide](doc/GUIDE.md).
+See the full runnable version in [`example/`](https://github.com/code3743/layer_canvas/tree/main/example)
+and every other layer type (gradients, paths, SVG import, text, images,
+groups) in the [full guide](https://github.com/code3743/layer_canvas/blob/main/doc/GUIDE.md).
 
 ## Features
 
@@ -127,11 +127,11 @@ and bundled automatically via Dart's Native Assets mechanism.
 The [quick start](#quick-start) above is the whole trivial case. For
 everything else — gradients, paths and polygons, SVG import, images,
 custom fonts, groups, the complete API reference, architecture, and how to
-build/test the package — see **[`doc/GUIDE.md`](doc/GUIDE.md)**.
+build/test the package — see **[`doc/GUIDE.md`](https://github.com/code3743/layer_canvas/blob/main/doc/GUIDE.md)**.
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE). See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
+MIT — see [`LICENSE`](https://github.com/code3743/layer_canvas/blob/main/LICENSE). See [`THIRD_PARTY_NOTICES.md`](https://github.com/code3743/layer_canvas/blob/main/THIRD_PARTY_NOTICES.md)
 for the licenses of vendored/embedded third-party code (Blend2D, Roboto).
 
 [native_assets]: https://dart.dev/interop/c-interop#native-assets

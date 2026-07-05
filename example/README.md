@@ -24,11 +24,13 @@ the result.
   rendered natively (no `dart:ui`, no `TextPainter`).
 - `Renderer.renderToFile` — one call from bytes to a PNG on disk.
 
-See [`scene/watermark_scene.dart`](scene/watermark_scene.dart) for how the
-layers are composed, and [`data/mock_location.dart`](data/mock_location.dart)
+See [`scene/watermark_scene.dart`](https://github.com/code3743/layer_canvas/blob/main/example/scene/watermark_scene.dart)
+for how the layers are composed, and
+[`data/mock_location.dart`](https://github.com/code3743/layer_canvas/blob/main/example/data/mock_location.dart)
 for the mock GPS reading and its formatting.
 
 To use this same package from a Flutter app instead, see the root
-[`README.md`](../README.md) — the `Scene`/`Renderer`/layer API is identical
-either way; only how you get the resulting PNG onto the screen differs
-(`Image.memory` in Flutter vs. writing it to disk here).
+[`README.md`](https://github.com/code3743/layer_canvas#readme) — the
+`Scene`/`Renderer`/layer API is identical either way; only how you get the
+resulting PNG onto the screen differs (`Image.memory` in Flutter vs.
+writing it to disk here).
