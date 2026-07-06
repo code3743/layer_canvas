@@ -26,6 +26,8 @@ import 'scene_flattener.dart';
 /// `render` is `async` so future versions can move the native call off the
 /// UI isolate without a breaking API change.
 class Renderer {
+  /// Creates a renderer. Stateless — safe to construct once and reuse, or
+  /// construct fresh per render.
   const Renderer();
 
   /// Renders [scene] and returns the encoded PNG bytes.
@@ -114,8 +116,10 @@ class Renderer {
 
 /// Thrown when the native engine fails to render a [Scene].
 class RenderException implements Exception {
+  /// Description of what went wrong.
   final String message;
 
+  /// Creates an exception with the given [message].
   RenderException(this.message);
 
   @override

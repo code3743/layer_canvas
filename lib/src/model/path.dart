@@ -26,7 +26,10 @@ sealed class PathCommand {
 
 /// Starts a new subpath at [point] without drawing anything.
 class MoveTo extends PathCommand {
+  /// Where the new subpath starts.
   final Point2D point;
+
+  /// Starts a new subpath at [point].
   const MoveTo(this.point);
 
   @override
@@ -41,7 +44,10 @@ class MoveTo extends PathCommand {
 
 /// Draws a straight line from the current point to [point].
 class LineTo extends PathCommand {
+  /// The line's endpoint.
   final Point2D point;
+
+  /// Draws a straight line to [point].
   const LineTo(this.point);
 
   @override
@@ -57,8 +63,13 @@ class LineTo extends PathCommand {
 /// Draws a quadratic Bézier curve from the current point to [point], using
 /// [control] as its single control point.
 class QuadraticBezierTo extends PathCommand {
+  /// The curve's single control point.
   final Point2D control;
+
+  /// The curve's endpoint.
   final Point2D point;
+
+  /// Draws a quadratic Bézier curve to [point] via [control].
   const QuadraticBezierTo(this.control, this.point);
 
   @override
@@ -77,9 +88,16 @@ class QuadraticBezierTo extends PathCommand {
 /// Draws a cubic Bézier curve from the current point to [point], using
 /// [control1] and [control2] as its two control points.
 class CubicBezierTo extends PathCommand {
+  /// The curve's first control point.
   final Point2D control1;
+
+  /// The curve's second control point.
   final Point2D control2;
+
+  /// The curve's endpoint.
   final Point2D point;
+
+  /// Draws a cubic Bézier curve to [point] via [control1]/[control2].
   const CubicBezierTo(this.control1, this.control2, this.point);
 
   @override
@@ -105,13 +123,25 @@ class CubicBezierTo extends PathCommand {
 /// the two endpoints and radii — [largeArc] picks the larger of the two
 /// possible arcs, [sweep] picks the clockwise one.
 class ArcTo extends PathCommand {
+  /// The ellipse's horizontal radius.
   final double radiusX;
+
+  /// The ellipse's vertical radius.
   final double radiusY;
+
+  /// Tilt of the ellipse relative to the local x-axis, in radians.
   final double xAxisRotation;
+
+  /// Picks the larger of the two possible arcs when `true`.
   final bool largeArc;
+
+  /// Picks the clockwise arc when `true`.
   final bool sweep;
+
+  /// The arc's endpoint.
   final Point2D point;
 
+  /// Draws an elliptical arc to [point].
   const ArcTo({
     required this.radiusX,
     required this.radiusY,
@@ -145,6 +175,7 @@ class ArcTo extends PathCommand {
 /// Closes the current subpath with a straight line back to its starting
 /// point (the most recent [MoveTo]).
 class ClosePath extends PathCommand {
+  /// Closes the current subpath.
   const ClosePath();
 
   @override
@@ -172,8 +203,10 @@ class ClosePath extends PathCommand {
 /// ]);
 /// ```
 class LayerPath {
+  /// The steps making up this path's geometry, in drawing order.
   final List<PathCommand> commands;
 
+  /// Creates a path from an explicit list of [commands].
   LayerPath(this.commands)
     : assert(commands.isNotEmpty, 'a LayerPath needs at least one command');
 

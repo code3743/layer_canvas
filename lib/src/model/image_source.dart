@@ -13,17 +13,23 @@ import 'dart:typed_data';
 /// `ImageSource`, and this package is meant to be imported unprefixed
 /// alongside them.
 abstract class LayerImageSource {
+  /// Const constructor for subclasses.
   const LayerImageSource();
 
+  /// An image read from [path] on disk at render time. See [FileImageSource].
   const factory LayerImageSource.file(String path) = FileImageSource;
 
+  /// An image already available as encoded [bytes] in memory. See
+  /// [MemoryImageSource].
   const factory LayerImageSource.memory(Uint8List bytes) = MemoryImageSource;
 }
 
 /// An image read from a file path on disk at render time.
 class FileImageSource extends LayerImageSource {
+  /// The file path to read from at render time.
   final String path;
 
+  /// Creates a source reading from [path].
   const FileImageSource(this.path);
 
   @override
@@ -32,8 +38,10 @@ class FileImageSource extends LayerImageSource {
 
 /// An image already available as encoded bytes (PNG/JPEG/etc.) in memory.
 class MemoryImageSource extends LayerImageSource {
+  /// The encoded (PNG/JPEG/etc.) image bytes.
   final Uint8List bytes;
 
+  /// Creates a source from already-encoded [bytes].
   const MemoryImageSource(this.bytes);
 
   @override

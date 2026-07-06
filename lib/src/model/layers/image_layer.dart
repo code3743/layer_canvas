@@ -14,9 +14,13 @@ enum ImageFit { fill, contain, cover, none }
 /// The image source is a [LayerImageSource] descriptor; actual decoding
 /// happens inside the native backend at render time.
 class ImageLayer extends Layer {
+  /// Where the encoded image bytes come from.
   final LayerImageSource source;
+
+  /// How the image is scaled inside [Layer.size].
   final ImageFit fit;
 
+  /// Creates an image layer from [source].
   ImageLayer({
     required this.source,
     this.fit = ImageFit.fill,

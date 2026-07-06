@@ -21,8 +21,10 @@ import 'svg_transform.dart';
 /// "don't fail the whole render over one bad value" philosophy the rest of
 /// this package follows.
 class SvgParseException implements Exception {
+  /// Description of what went wrong.
   final String message;
 
+  /// Creates an exception with the given [message].
   SvgParseException(this.message);
 
   @override

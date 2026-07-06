@@ -1,3 +1,8 @@
+/// A pure-Dart 2D scene model rendered to pixels by a native Blend2D engine
+/// over FFI — rectangles, text, images, vector paths, and SVG import,
+/// composited into PNG bytes via [Renderer].
+library;
+
 export 'src/model/color.dart';
 export 'src/model/geometry.dart';
 export 'src/model/gradient.dart';

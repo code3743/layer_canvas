@@ -10,8 +10,11 @@ import 'layer.dart';
 /// need no changes to support grouping, and Groups can be nested
 /// arbitrarily.
 class Group extends Layer {
+  /// The grouped layers, in the same insertion-order/[Layer.zIndex]
+  /// stacking rules a [Scene]'s own layer list follows.
   final List<Layer> children;
 
+  /// Creates a group of [children].
   Group({
     required this.children,
     super.id,

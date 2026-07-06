@@ -89,8 +89,10 @@ class FontRegistry {
 /// Thrown when [FontRegistry.register] is given data the native engine
 /// can't parse as a font.
 class FontRegistrationException implements Exception {
+  /// Description of what went wrong.
   final String message;
 
+  /// Creates an exception with the given [message].
   FontRegistrationException(this.message);
 
   @override
