@@ -36,6 +36,15 @@ class GradientStop {
 
   @override
   String toString() => 'GradientStop($offset, $color)';
+
+  /// Converts to a JSON-safe map, see `Scene.toJson`.
+  Map<String, Object?> toJson() => {'offset': offset, 'color': color.toJson()};
+
+  /// Reconstructs a [GradientStop] from [toJson]'s output.
+  factory GradientStop.fromJson(Map<String, Object?> json) => GradientStop(
+    (json['offset'] as num).toDouble(),
+    Color32.fromJson(json['color'] as int),
+  );
 }
 
 /// A smooth transition between colors, used as a [LayerPaint.gradient] fill
@@ -57,6 +66,57 @@ sealed class Gradient {
     required this.stops,
     this.extendMode = GradientExtendMode.pad,
   });
+
+  /// Converts to a JSON-safe map, see `Scene.toJson`. Each concrete subclass
+  /// includes a `'type'` discriminator (`fromJson` below dispatches on it),
+  /// its own geometry, plus the [stops]/[extendMode] fields common to all
+  /// three.
+  Map<String, Object?> toJson();
+
+  /// The [stops]/[extendMode] fields common to every concrete subclass's
+  /// [toJson] — spread that map's result with this one plus a `'type'` tag
+  /// and the subclass's own geometry.
+  Map<String, Object?> _commonJson() => {
+    'stops': [for (final stop in stops) stop.toJson()],
+    'extendMode': extendMode.name,
+  };
+
+  /// Reconstructs a [LinearGradient]/[RadialGradient]/[ConicGradient] from
+  /// [toJson]'s output, dispatching on its `'type'` tag.
+  factory Gradient.fromJson(Map<String, Object?> json) {
+    final type = json['type'] as String;
+    if (type != 'linear' && type != 'radial' && type != 'conic') {
+      throw ArgumentError('Unknown gradient type "$type"');
+    }
+
+    final stops = [
+      for (final stop in json['stops'] as List<Object?>)
+        GradientStop.fromJson(stop as Map<String, Object?>),
+    ];
+    final extendMode = GradientExtendMode.values.byName(
+      json['extendMode'] as String,
+    );
+    return switch (type) {
+      'linear' => LinearGradient(
+        start: Point2D.fromJson(json['start'] as Map<String, Object?>),
+        end: Point2D.fromJson(json['end'] as Map<String, Object?>),
+        stops: stops,
+        extendMode: extendMode,
+      ),
+      'radial' => RadialGradient(
+        center: Point2D.fromJson(json['center'] as Map<String, Object?>),
+        radius: (json['radius'] as num).toDouble(),
+        stops: stops,
+        extendMode: extendMode,
+      ),
+      _ => ConicGradient(
+        center: Point2D.fromJson(json['center'] as Map<String, Object?>),
+        angle: (json['angle'] as num).toDouble(),
+        stops: stops,
+        extendMode: extendMode,
+      ),
+    };
+  }
 }
 
 /// Builds a [GradientStop] list from parallel [colors]/[positions] lists —
@@ -120,6 +180,14 @@ class LinearGradient extends Gradient {
   String toString() =>
       'LinearGradient(start: $start, end: $end, stops: $stops, '
       'extendMode: $extendMode)';
+
+  @override
+  Map<String, Object?> toJson() => {
+    'type': 'linear',
+    'start': start.toJson(),
+    'end': end.toJson(),
+    ..._commonJson(),
+  };
 }
 
 /// A gradient that radiates outward from [center] up to [radius].
@@ -163,6 +231,14 @@ class RadialGradient extends Gradient {
   String toString() =>
       'RadialGradient(center: $center, radius: $radius, stops: $stops, '
       'extendMode: $extendMode)';
+
+  @override
+  Map<String, Object?> toJson() => {
+    'type': 'radial',
+    'center': center.toJson(),
+    'radius': radius,
+    ..._commonJson(),
+  };
 }
 
 /// A gradient that sweeps around [center], starting at [angle] radians.
@@ -202,4 +278,12 @@ class ConicGradient extends Gradient {
   String toString() =>
       'ConicGradient(center: $center, angle: $angle, stops: $stops, '
       'extendMode: $extendMode)';
+
+  @override
+  Map<String, Object?> toJson() => {
+    'type': 'conic',
+    'center': center.toJson(),
+    'angle': angle,
+    ..._commonJson(),
+  };
 }

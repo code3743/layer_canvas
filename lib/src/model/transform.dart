@@ -45,7 +45,34 @@ class LayerTransform {
   }
 
   @override
+  bool operator ==(Object other) =>
+      other is LayerTransform &&
+      other.position == position &&
+      other.rotation == rotation &&
+      other.scale == scale &&
+      other.anchor == anchor;
+
+  @override
+  int get hashCode => Object.hash(position, rotation, scale, anchor);
+
+  @override
   String toString() =>
       'LayerTransform(position: $position, '
       'rotation: $rotation, scale: $scale, anchor: $anchor)';
+
+  /// Converts to a JSON-safe map, see `Scene.toJson`.
+  Map<String, Object?> toJson() => {
+    'position': position.toJson(),
+    'rotation': rotation,
+    'scale': scale.toJson(),
+    'anchor': anchor.toJson(),
+  };
+
+  /// Reconstructs a [LayerTransform] from [toJson]'s output.
+  factory LayerTransform.fromJson(Map<String, Object?> json) => LayerTransform(
+    position: Point2D.fromJson(json['position'] as Map<String, Object?>),
+    rotation: (json['rotation'] as num).toDouble(),
+    scale: Point2D.fromJson(json['scale'] as Map<String, Object?>),
+    anchor: Point2D.fromJson(json['anchor'] as Map<String, Object?>),
+  );
 }

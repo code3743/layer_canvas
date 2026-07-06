@@ -30,4 +30,37 @@ class Group extends Layer {
 
   @override
   Map<String, Object?> get properties => {'children': children};
+
+  @override
+  Map<String, Object?> toJson() => {
+    ...commonJson(),
+    'properties': {
+      'children': [for (final child in children) child.toJson()],
+    },
+  };
+
+  /// Reconstructs a [Group] from [toJson]'s output. [decodeChild] resolves
+  /// each entry in `'children'` — pass `LayerRegistry.decodeLayer` (the
+  /// default every built-in decoder uses) unless you've built your own
+  /// registry.
+  factory Group.fromJson(
+    Map<String, Object?> json, {
+    required Layer Function(Map<String, Object?>) decodeChild,
+  }) {
+    final common = parseCommonLayerJson(json);
+    final properties = json['properties'] as Map<String, Object?>;
+    final childrenJson = properties['children'] as List<Object?>;
+    return Group(
+      id: common.id,
+      transform: common.transform,
+      size: common.size,
+      opacity: common.opacity,
+      zIndex: common.zIndex,
+      visible: common.visible,
+      children: [
+        for (final childJson in childrenJson)
+          decodeChild(childJson as Map<String, Object?>),
+      ],
+    );
+  }
 }

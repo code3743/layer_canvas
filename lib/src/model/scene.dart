@@ -1,5 +1,6 @@
 import 'image_source.dart';
 import 'layer.dart';
+import 'serialization.dart';
 
 /// The root of a composition: a fixed-size canvas plus an ordered list of
 /// [Layer]s (which may themselves be [Group]s) painted on top of an
@@ -51,4 +52,33 @@ class Scene {
   String toString() =>
       'Scene(${width}x$height, background: $background, '
       'layers: ${_layers.length})';
+
+  /// Converts to a JSON-safe map. `Layer`/`LayerImageSource`/`LayerPaint`/
+  /// `Gradient`/`LayerPath`/etc. all expose their own `toJson`/`fromJson`
+  /// pair this recurses into — see [LayerRegistry] for how a custom `Layer`
+  /// or `LayerImageSource` subclass round-trips through [fromJson] too.
+  Map<String, Object?> toJson() => {
+    'width': width,
+    'height': height,
+    'background': background?.toJson(),
+    'layers': [for (final layer in _layers) layer.toJson()],
+  };
+
+  /// Reconstructs a [Scene] from [toJson]'s output, via [LayerRegistry].
+  factory Scene.fromJson(Map<String, Object?> json) {
+    final backgroundJson = json['background'] as Map<String, Object?>?;
+    final scene = Scene(
+      width: json['width'] as int,
+      height: json['height'] as int,
+      background: backgroundJson == null
+          ? null
+          : LayerRegistry.decodeImageSource(backgroundJson),
+    );
+    final layersJson = json['layers'] as List<Object?>;
+    scene.addAll([
+      for (final layerJson in layersJson)
+        LayerRegistry.decodeLayer(layerJson as Map<String, Object?>),
+    ]);
+    return scene;
+  }
 }

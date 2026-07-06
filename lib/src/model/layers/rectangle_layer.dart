@@ -75,4 +75,26 @@ class RectangleLayer extends Layer {
     'paint': paint,
     'cornerRadius': cornerRadius,
   };
+
+  @override
+  Map<String, Object?> toJson() => {
+    ...commonJson(),
+    'properties': {'paint': paint.toJson(), 'cornerRadius': cornerRadius},
+  };
+
+  /// Reconstructs a [RectangleLayer] from [toJson]'s output.
+  factory RectangleLayer.fromJson(Map<String, Object?> json) {
+    final common = parseCommonLayerJson(json);
+    final properties = json['properties'] as Map<String, Object?>;
+    return RectangleLayer(
+      id: common.id,
+      transform: common.transform,
+      size: common.size!,
+      opacity: common.opacity,
+      zIndex: common.zIndex,
+      visible: common.visible,
+      paint: LayerPaint.fromJson(properties['paint'] as Map<String, Object?>),
+      cornerRadius: (properties['cornerRadius'] as num).toDouble(),
+    );
+  }
 }

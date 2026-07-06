@@ -68,4 +68,59 @@ abstract class Layer {
 
   @override
   String toString() => '$runtimeType(id: $id, type: $type)';
+
+  /// Converts to a JSON-safe map, see `Scene.toJson`.
+  ///
+  /// Unlike [properties] (raw Dart objects, used only internally to cross
+  /// the FFI boundary), this must be JSON-safe end to end. A subclass
+  /// implements this by spreading [commonJson]'s result alongside its own
+  /// `'properties'` map (each value serialized with its own `toJson`, same
+  /// shape [properties] exposes but JSON-safe) — see e.g.
+  /// `RectangleLayer.toJson`. A custom `Layer` subclass that skips this
+  /// override simply doesn't support [Scene.toJson]/[Scene.fromJson] — call
+  /// [Scene.toJson] on layers of only built-in types, and it (or
+  /// [LayerRegistry.registerLayer]) never fails render-side, since neither
+  /// [Renderer] nor [properties] depend on this method at all.
+  Map<String, Object?> toJson();
+
+  /// The `id`/`transform`/`size`/`opacity`/`zIndex`/`visible`/`type` fields
+  /// every concrete [toJson] override shares — spread this map's result
+  /// alongside a `'properties'` map of the subclass's own fields.
+  Map<String, Object?> commonJson() => {
+    'type': type,
+    'id': id,
+    'transform': transform.toJson(),
+    'size': size?.toJson(),
+    'opacity': opacity,
+    'zIndex': zIndex,
+    'visible': visible,
+  };
+}
+
+/// The common [Layer] fields ([commonJson]'s output) already parsed back
+/// into their Dart types — every concrete `Layer.fromJson` destructures
+/// this instead of repeating the same six field lookups.
+typedef CommonLayerFields = ({
+  String id,
+  LayerTransform transform,
+  Size2D? size,
+  double opacity,
+  int zIndex,
+  bool visible,
+});
+
+/// Parses the fields [Layer.commonJson] adds, shared by every concrete
+/// layer's `fromJson`.
+CommonLayerFields parseCommonLayerJson(Map<String, Object?> json) {
+  final sizeJson = json['size'] as Map<String, Object?>?;
+  return (
+    id: json['id'] as String,
+    transform: LayerTransform.fromJson(
+      json['transform'] as Map<String, Object?>,
+    ),
+    size: sizeJson == null ? null : Size2D.fromJson(sizeJson),
+    opacity: (json['opacity'] as num).toDouble(),
+    zIndex: json['zIndex'] as int,
+    visible: json['visible'] as bool,
+  );
 }

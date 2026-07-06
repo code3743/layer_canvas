@@ -1,3 +1,17 @@
+## 0.1.0-beta.6
+
+* **JSON serialization** — every model type (`Scene`, all `Layer` subtypes,
+  `LayerPaint`, `Gradient`, `LayerPath`, `LayerImageSource`, etc.) gains a
+  `toJson()` and a matching `fromJson`/`Gradient.fromJson`-style
+  constructor. `LayerRegistry.registerLayer`/`registerImageSource` let a
+  custom `Layer`/`LayerImageSource` subclass round-trip through
+  `Scene.toJson`/`Scene.fromJson` too, without changing this package.
+* `LayerTransform` now has value equality (`operator ==`/`hashCode`),
+  matching `Point2D`/`Size2D`/`Color32`.
+* `TextWeight.fromValue(int)` — a new factory for constructing a weight
+  outside the 7 named constants (previously impossible, since `TextWeight`'s
+  constructor was private).
+
 ## 0.1.0-beta.5
 
 * **Stroke cap/join/miter limit** — `LayerPaint.strokeCap` (`butt`/`round`/
