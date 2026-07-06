@@ -34,6 +34,7 @@ class RectangleLayer extends Layer {
     super.opacity,
     super.zIndex,
     super.visible,
+    super.clipToBounds,
   }) : super(size: size);
 
   /// A solid-filled rectangle — [width]/[height]/[color] directly, without
@@ -54,6 +55,7 @@ class RectangleLayer extends Layer {
     double opacity = 1.0,
     int zIndex = 0,
     bool visible = true,
+    bool clipToBounds = false,
   }) {
     return RectangleLayer(
       size: Size2D(width, height),
@@ -64,6 +66,7 @@ class RectangleLayer extends Layer {
       opacity: opacity,
       zIndex: zIndex,
       visible: visible,
+      clipToBounds: clipToBounds,
     );
   }
 
@@ -93,6 +96,7 @@ class RectangleLayer extends Layer {
       opacity: common.opacity,
       zIndex: common.zIndex,
       visible: common.visible,
+      clipToBounds: common.clipToBounds,
       paint: LayerPaint.fromJson(properties['paint'] as Map<String, Object?>),
       cornerRadius: (properties['cornerRadius'] as num).toDouble(),
     );

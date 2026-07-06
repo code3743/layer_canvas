@@ -59,6 +59,7 @@ bool fillNativeLayerDesc(
   desc.anchor_x = transform.anchor.x;
   desc.anchor_y = transform.anchor.y;
   desc.opacity = opacity;
+  desc.clip_to_bounds = layer.clipToBounds ? 1 : 0;
 
   if (layer is RectangleLayer) {
     desc.kind = bindings.LcLayerKind.LC_LAYER_KIND_RECTANGLE.value;

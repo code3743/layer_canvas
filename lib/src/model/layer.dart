@@ -44,6 +44,21 @@ abstract class Layer {
   /// entirely, as if it weren't in the [Scene].
   final bool visible;
 
+  /// When `true`, this layer's own painted content is clipped to its own
+  /// [size] box, in its own local space (i.e. after its own
+  /// position/rotation/scale is applied — the clip rectangle moves and
+  /// rotates with the layer exactly like its paint geometry does). Requires
+  /// an explicit [size]; a layer with no size (intrinsic sizing) has
+  /// nothing well-defined to clip to, and ends up fully clipped away (an
+  /// empty box) — so leave this `false` on an intrinsically-sized layer.
+  ///
+  /// Has no effect on a [Group]: a group is expanded into its concrete
+  /// descendants before reaching the native renderer (see
+  /// `scene_flattener.dart`), so there's no single composited surface left
+  /// to clip by the time rendering happens. Clipping an entire composed
+  /// cluster of layers together isn't supported by this package today.
+  final bool clipToBounds;
+
   /// Creates a layer. Subclasses forward these as `super` parameters.
   Layer({
     String? id,
@@ -52,6 +67,7 @@ abstract class Layer {
     this.opacity = 1.0,
     this.zIndex = 0,
     this.visible = true,
+    this.clipToBounds = false,
   }) : assert(
          opacity >= 0.0 && opacity <= 1.0,
          'opacity must be between 0.0 and 1.0',
@@ -83,9 +99,10 @@ abstract class Layer {
   /// [Renderer] nor [properties] depend on this method at all.
   Map<String, Object?> toJson();
 
-  /// The `id`/`transform`/`size`/`opacity`/`zIndex`/`visible`/`type` fields
-  /// every concrete [toJson] override shares — spread this map's result
-  /// alongside a `'properties'` map of the subclass's own fields.
+  /// The `id`/`transform`/`size`/`opacity`/`zIndex`/`visible`/`clipToBounds`/
+  /// `type` fields every concrete [toJson] override shares — spread this
+  /// map's result alongside a `'properties'` map of the subclass's own
+  /// fields.
   Map<String, Object?> commonJson() => {
     'type': type,
     'id': id,
@@ -94,12 +111,13 @@ abstract class Layer {
     'opacity': opacity,
     'zIndex': zIndex,
     'visible': visible,
+    'clipToBounds': clipToBounds,
   };
 }
 
 /// The common [Layer] fields ([commonJson]'s output) already parsed back
 /// into their Dart types — every concrete `Layer.fromJson` destructures
-/// this instead of repeating the same six field lookups.
+/// this instead of repeating the same field lookups.
 typedef CommonLayerFields = ({
   String id,
   LayerTransform transform,
@@ -107,6 +125,7 @@ typedef CommonLayerFields = ({
   double opacity,
   int zIndex,
   bool visible,
+  bool clipToBounds,
 });
 
 /// Parses the fields [Layer.commonJson] adds, shared by every concrete
@@ -122,5 +141,6 @@ CommonLayerFields parseCommonLayerJson(Map<String, Object?> json) {
     opacity: (json['opacity'] as num).toDouble(),
     zIndex: json['zIndex'] as int,
     visible: json['visible'] as bool,
+    clipToBounds: json['clipToBounds'] as bool? ?? false,
   );
 }

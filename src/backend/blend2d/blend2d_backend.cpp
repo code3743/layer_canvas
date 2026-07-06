@@ -327,6 +327,15 @@ void ApplyLayerTransform(BLContext& ctx, const LcLayerDesc& layer) {
   ctx.scale(layer.scale_x, layer.scale_y);
   ctx.translate(-layer.anchor_x * layer.width, -layer.anchor_y * layer.height);
   ctx.set_global_alpha(layer.opacity);
+
+  // Clips to this layer's own box, in the same local 0,0..width,height
+  // space every Render* function paints in - moves/rotates/scales with the
+  // layer exactly like its paint geometry does. Scoped to just this layer's
+  // paint calls by the ctx.save()/restore() pair every Render* wraps this
+  // function in.
+  if (layer.clip_to_bounds != 0) {
+    ctx.clip_to_rect(BLRect(0, 0, layer.width, layer.height));
+  }
 }
 
 void RenderRectangle(BLContext& ctx, const LcLayerDesc& layer) {
