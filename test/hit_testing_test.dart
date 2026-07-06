@@ -39,7 +39,9 @@ void main() {
     });
 
     test('returns null just outside the bounding box', () {
-      final layer = _rect(transform: const LayerTransform(position: Point2D(10, 10)));
+      final layer = _rect(
+        transform: const LayerTransform(position: Point2D(10, 10)),
+      );
       final scene = _sceneOf([layer]);
 
       expect(hitTestScene(scene, const Point2D(9.9, 15)), isNull);
@@ -120,19 +122,22 @@ void main() {
       expect(hitTestScene(scene, const Point2D(35, 5)), isNull);
     });
 
-    test('a group carries its children\'s hit boxes along its own transform', () {
-      final child = _rect(
-        id: 'child',
-        transform: const LayerTransform(position: Point2D(5, 5)),
-      );
-      final group = Group(
-        transform: const LayerTransform(position: Point2D(100, 100)),
-        children: [child],
-      );
-      final scene = _sceneOf([group]);
+    test(
+      'a group carries its children\'s hit boxes along its own transform',
+      () {
+        final child = _rect(
+          id: 'child',
+          transform: const LayerTransform(position: Point2D(5, 5)),
+        );
+        final group = Group(
+          transform: const LayerTransform(position: Point2D(100, 100)),
+          children: [child],
+        );
+        final scene = _sceneOf([group]);
 
-      expect(hitTestScene(scene, const Point2D(110, 110))?.id, 'child');
-      expect(hitTestScene(scene, const Point2D(10, 10)), isNull);
-    });
+        expect(hitTestScene(scene, const Point2D(110, 110))?.id, 'child');
+        expect(hitTestScene(scene, const Point2D(10, 10)), isNull);
+      },
+    );
   });
 }

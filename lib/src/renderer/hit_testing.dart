@@ -45,7 +45,11 @@ Layer? hitTestScene(Scene scene, Point2D point) {
 /// applied to it — i.e. the inverse of the same `position + R·S·local`
 /// mapping [flattenScene] uses to place a layer's local geometry in world
 /// space.
-bool _transformedRectContains(LayerTransform transform, Size2D size, Point2D point) {
+bool _transformedRectContains(
+  LayerTransform transform,
+  Size2D size,
+  Point2D point,
+) {
   final dx = point.x - transform.position.x;
   final dy = point.y - transform.position.y;
 
@@ -70,5 +74,8 @@ bool _transformedRectContains(LayerTransform transform, Size2D size, Point2D poi
     localY /= transform.scale.y;
   }
 
-  return localX >= 0 && localX <= size.width && localY >= 0 && localY <= size.height;
+  return localX >= 0 &&
+      localX <= size.width &&
+      localY >= 0 &&
+      localY <= size.height;
 }
