@@ -17,14 +17,21 @@ enum LayerPaintStyle { fill, stroke, fillAndStroke }
 /// );
 /// ```
 class LayerPaint {
+  /// The solid fill/stroke color, used unless [gradient] is set.
   final Color32 color;
+
+  /// Whether the shape is filled, stroked, or both.
   final LayerPaintStyle style;
+
+  /// Width of the stroke, in the [Scene]'s logical pixel space. Ignored
+  /// unless [style] is [LayerPaintStyle.stroke] or `fillAndStroke`.
   final double strokeWidth;
 
   /// When set, paints the shape (both fill and stroke) with this gradient
   /// instead of the solid [color].
   final Gradient? gradient;
 
+  /// Creates a paint. Defaults to a solid black fill.
   const LayerPaint({
     this.color = Color32.black,
     this.style = LayerPaintStyle.fill,
@@ -32,6 +39,7 @@ class LayerPaint {
     this.gradient,
   });
 
+  /// Returns a copy with the given fields replaced.
   LayerPaint copyWith({
     Color32? color,
     LayerPaintStyle? style,

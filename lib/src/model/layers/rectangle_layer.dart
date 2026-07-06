@@ -17,9 +17,14 @@ import '../transform.dart';
 /// )
 /// ```
 class RectangleLayer extends Layer {
+  /// How the rectangle is filled and/or stroked.
   final LayerPaint paint;
+
+  /// Radius of the rounded corners, in the [Scene]'s logical pixel space.
+  /// `0` (the default) draws sharp corners.
   final double cornerRadius;
 
+  /// Creates a rectangle of the given size.
   RectangleLayer({
     required Size2D size,
     this.paint = const LayerPaint(),

@@ -18,9 +18,13 @@ enum GradientExtendMode {
 /// [offset] is in the `0.0..1.0` range, where `0.0` is the gradient's start
 /// and `1.0` its end.
 class GradientStop {
+  /// Position along the gradient, `0.0..1.0`.
   final double offset;
+
+  /// The color at [offset].
   final Color32 color;
 
+  /// Creates a stop of [color] at [offset].
   const GradientStop(this.offset, this.color);
 
   @override
@@ -43,7 +47,10 @@ class GradientStop {
 /// uses — so a gradient defined once keeps its relative position as the
 /// layer is resized, and inherits the layer's rotation/scale automatically.
 sealed class Gradient {
+  /// The color ramp, in ascending [GradientStop.offset] order.
   final List<GradientStop> stops;
+
+  /// How the gradient behaves outside its `0.0..1.0` offset range.
   final GradientExtendMode extendMode;
 
   const Gradient({
@@ -76,9 +83,13 @@ List<GradientStop> _colorsToStops(
 
 /// A gradient that transitions along a straight line from [start] to [end].
 class LinearGradient extends Gradient {
+  /// Fractional start point, `0.0..1.0` relative to the painted layer's size.
   final Point2D start;
+
+  /// Fractional end point, `0.0..1.0` relative to the painted layer's size.
   final Point2D end;
 
+  /// Creates a gradient from [start] to [end].
   const LinearGradient({
     required this.start,
     required this.end,
@@ -117,9 +128,13 @@ class LinearGradient extends Gradient {
 /// non-square layer the gradient circle is stretched to match the layer's
 /// aspect ratio.
 class RadialGradient extends Gradient {
+  /// Fractional center point, `0.0..1.0` relative to the painted layer's size.
   final Point2D center;
+
+  /// Fractional radius relative to the layer's own width.
   final double radius;
 
+  /// Creates a gradient radiating from [center] out to [radius].
   const RadialGradient({
     required this.center,
     required this.radius,
@@ -152,9 +167,13 @@ class RadialGradient extends Gradient {
 
 /// A gradient that sweeps around [center], starting at [angle] radians.
 class ConicGradient extends Gradient {
+  /// Fractional center point, `0.0..1.0` relative to the painted layer's size.
   final Point2D center;
+
+  /// Starting angle, in radians.
   final double angle;
 
+  /// Creates a gradient sweeping around [center], starting at [angle].
   const ConicGradient({
     required this.center,
     this.angle = 0,

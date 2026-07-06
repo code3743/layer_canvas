@@ -3,16 +3,29 @@
 /// Used for [LayerTransform.position], [LayerTransform.scale], and
 /// [LayerTransform.anchor].
 class Point2D {
+  /// The horizontal coordinate.
   final double x;
+
+  /// The vertical coordinate.
   final double y;
 
+  /// Creates a point at ([x], [y]).
   const Point2D(this.x, this.y);
 
+  /// The origin, `(0, 0)`.
   static const zero = Point2D(0, 0);
+
+  /// The unit point, `(1, 1)` — the identity value for [operator *] and for
+  /// [LayerTransform.scale].
   static const one = Point2D(1, 1);
 
+  /// Adds [other]'s coordinates to this point's.
   Point2D operator +(Point2D other) => Point2D(x + other.x, y + other.y);
+
+  /// Subtracts [other]'s coordinates from this point's.
   Point2D operator -(Point2D other) => Point2D(x - other.x, y - other.y);
+
+  /// Scales both coordinates by [factor].
   Point2D operator *(double factor) => Point2D(x * factor, y * factor);
 
   @override
@@ -30,13 +43,19 @@ class Point2D {
 ///
 /// Used for [Layer.size] and scene canvas dimensions.
 class Size2D {
+  /// The horizontal extent.
   final double width;
+
+  /// The vertical extent.
   final double height;
 
+  /// Creates a size of [width] by [height].
   const Size2D(this.width, this.height);
 
+  /// The zero size, `0 x 0`.
   static const zero = Size2D(0, 0);
 
+  /// Whether [width] or [height] is zero or negative.
   bool get isEmpty => width <= 0 || height <= 0;
 
   @override

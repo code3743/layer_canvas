@@ -21,6 +21,7 @@ abstract class Layer {
   /// Unique identifier, stable for the lifetime of this layer instance.
   final String id;
 
+  /// Position/rotation/scale/anchor applied before this layer is composited.
   final LayerTransform transform;
 
   /// The layer's own size, in the [Scene]'s logical pixel space.
@@ -32,10 +33,18 @@ abstract class Layer {
   /// [RectangleLayer]) require it explicitly.
   final Size2D? size;
 
+  /// Opacity multiplier applied on top of the layer's own content, `0.0..1.0`.
   final double opacity;
+
+  /// Stacking order among sibling layers — higher values paint on top.
+  /// Layers with equal [zIndex] keep their relative insertion order.
   final int zIndex;
+
+  /// Whether this layer is painted at all. An invisible layer is skipped
+  /// entirely, as if it weren't in the [Scene].
   final bool visible;
 
+  /// Creates a layer. Subclasses forward these as `super` parameters.
   Layer({
     String? id,
     this.transform = const LayerTransform(),

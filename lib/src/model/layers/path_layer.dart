@@ -25,8 +25,13 @@ import '../transform.dart';
 /// )
 /// ```
 class PathLayer extends Layer {
+  /// The vector geometry to fill and/or stroke.
   final LayerPath path;
+
+  /// How [path] is filled and/or stroked.
   final LayerPaint paint;
+
+  /// How overlapping/self-intersecting regions of [path] are filled.
   final FillRule fillRule;
 
   /// [size] is only used to place the rotation/scale pivot when

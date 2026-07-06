@@ -9,7 +9,10 @@ import 'layer.dart';
 /// A `Renderer` takes a [Scene] and produces image bytes; that is the only
 /// coupling between this model and the rendering backend.
 class Scene {
+  /// The canvas width, in logical pixels.
   final int width;
+
+  /// The canvas height, in logical pixels.
   final int height;
 
   /// Painted first, before any [layers]. `null` means a transparent canvas.
@@ -17,6 +20,7 @@ class Scene {
 
   final List<Layer> _layers = [];
 
+  /// Creates an empty canvas of [width] by [height] logical pixels.
   Scene({required this.width, required this.height, this.background})
     : assert(width > 0, 'width must be > 0'),
       assert(height > 0, 'height must be > 0');
@@ -25,8 +29,10 @@ class Scene {
   /// determined by [Layer.zIndex] (stable sort), not by this list's order.
   List<Layer> get layers => List.unmodifiable(_layers);
 
+  /// Appends [layer] to [layers].
   void add(Layer layer) => _layers.add(layer);
 
+  /// Appends every given layer to this scene's [layers], in order.
   void addAll(Iterable<Layer> layers) => _layers.addAll(layers);
 
   /// Removes the layer with the given [layerId]. Returns whether a layer
@@ -38,6 +44,7 @@ class Scene {
     return true;
   }
 
+  /// Removes every layer from [layers].
   void clear() => _layers.clear();
 
   @override

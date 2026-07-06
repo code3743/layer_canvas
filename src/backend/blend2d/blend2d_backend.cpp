@@ -261,25 +261,38 @@ BLVar BuildPaintStyle(const LcPaintDesc& paint, double width, double height) {
 
   // LcGradientStop isn't binary-compatible with BLGradientStop (argb32 vs.
   // rgba64), so stops are copied one at a time rather than assigned in bulk.
-  for (int32_t i = 0; i < paint.stop_count; ++i) {
-    gradient.add_stop(paint.stops[i].offset,
-                       BLRgba32(paint.stops[i].color_argb));
+  // A null `stops` with a positive count means a malformed descriptor - treat
+  // it as "no stops" rather than dereferencing null, same never-fail-the-
+  // render philosophy as an unrecognized layer kind.
+  if (paint.stops != nullptr) {
+    for (int32_t i = 0; i < paint.stop_count; ++i) {
+      gradient.add_stop(paint.stops[i].offset,
+                         BLRgba32(paint.stops[i].color_argb));
+    }
   }
 
   return BLVar(std::move(gradient));
 }
 
-void RenderRectangle(BLContext& ctx, const LcLayerDesc& layer) {
-  // Pivot (rotate/scale) around the layer's anchor point, expressed as a
-  // fraction of its own size - same semantics as LayerTransform.anchor in
-  // lib/src/model/transform.dart.
-  ctx.save();
+// Applies the layer's common pivot transform and opacity onto `ctx`: pivot
+// (rotate/scale) around the anchor point, expressed as a fraction of the
+// layer's own size - same semantics as LayerTransform.anchor in
+// lib/src/model/transform.dart. Every Render* function calls this right after
+// ctx.save() so its fill/stroke/blit below runs in the layer's local
+// 0,0..width,height space (which is also why BuildPaintStyle's fractional
+// gradient geometry inherits the shape's rotation and scale for free).
+void ApplyLayerTransform(BLContext& ctx, const LcLayerDesc& layer) {
   ctx.translate(layer.pos_x, layer.pos_y);
   ctx.translate(layer.anchor_x * layer.width, layer.anchor_y * layer.height);
   ctx.rotate(layer.rotation);
   ctx.scale(layer.scale_x, layer.scale_y);
   ctx.translate(-layer.anchor_x * layer.width, -layer.anchor_y * layer.height);
   ctx.set_global_alpha(layer.opacity);
+}
+
+void RenderRectangle(BLContext& ctx, const LcLayerDesc& layer) {
+  ctx.save();
+  ApplyLayerTransform(ctx, layer);
 
   BLRoundRect shape(0, 0, layer.width, layer.height,
                      layer.rect_corner_radius);
@@ -340,14 +353,8 @@ BLFontFace ResolveFontFace(const LcLayerDesc& layer) {
 }
 
 void RenderText(BLContext& ctx, const LcLayerDesc& layer) {
-  // Same pivot transform as RenderRectangle - see the comment there.
   ctx.save();
-  ctx.translate(layer.pos_x, layer.pos_y);
-  ctx.translate(layer.anchor_x * layer.width, layer.anchor_y * layer.height);
-  ctx.rotate(layer.rotation);
-  ctx.scale(layer.scale_x, layer.scale_y);
-  ctx.translate(-layer.anchor_x * layer.width, -layer.anchor_y * layer.height);
-  ctx.set_global_alpha(layer.opacity);
+  ApplyLayerTransform(ctx, layer);
 
   const BLFontFace face = ResolveFontFace(layer);
   BLFont font;
@@ -419,15 +426,8 @@ void RenderImage(BLContext& ctx, const LcLayerDesc& layer) {
     return;
   }
 
-  // Same pivot transform as RenderRectangle/RenderText - see the comment
-  // on RenderRectangle.
   ctx.save();
-  ctx.translate(layer.pos_x, layer.pos_y);
-  ctx.translate(layer.anchor_x * layer.width, layer.anchor_y * layer.height);
-  ctx.rotate(layer.rotation);
-  ctx.scale(layer.scale_x, layer.scale_y);
-  ctx.translate(-layer.anchor_x * layer.width, -layer.anchor_y * layer.height);
-  ctx.set_global_alpha(layer.opacity);
+  ApplyLayerTransform(ctx, layer);
 
   // No explicit size means "intrinsic": draw at the decoded image's own
   // pixel dimensions (mirrors Layer.size's doc comment in layer.dart).
@@ -496,11 +496,39 @@ constexpr BLFillRule kFillRules[] = {BL_FILL_RULE_NON_ZERO,
 // for how many coordinates each command consumes) into a BLPath. An
 // unrecognized command byte is skipped rather than failing the whole
 // render, same philosophy as an unrecognized layer kind.
+// Number of doubles each path command consumes from path_coords (see
+// LcPathCommand in scene_desc.h). CLOSE and any unrecognized byte consume 0.
+int32_t PathCommandCoordCount(uint8_t command) {
+  switch (command) {
+    case kPathCommandMoveTo:
+    case kPathCommandLineTo:
+      return 2;
+    case kPathCommandQuadTo:
+      return 4;
+    case kPathCommandCubicTo:
+      return 6;
+    case kPathCommandArcTo:
+      return 7;
+    default:  // kPathCommandClose and unrecognized bytes.
+      return 0;
+  }
+}
+
 BLPath BuildPath(const LcLayerDesc& layer) {
   BLPath path;
+  if (layer.path_commands == nullptr) return path;
+
   int32_t c = 0;  // index into layer.path_coords.
   for (int32_t i = 0; i < layer.path_command_count; ++i) {
-    switch (layer.path_commands[i]) {
+    const uint8_t command = layer.path_commands[i];
+
+    // Guard the FFI trust boundary: a command that would read past
+    // path_coord_count means the descriptor's command/coord arrays are
+    // desynchronized (a Dart-side bug or corrupt data). Stop walking rather
+    // than read out of bounds - the partial path built so far still renders.
+    if (c + PathCommandCoordCount(command) > layer.path_coord_count) break;
+
+    switch (command) {
       case kPathCommandMoveTo:
         path.move_to(layer.path_coords[c], layer.path_coords[c + 1]);
         c += 2;
@@ -547,14 +575,8 @@ BLPath BuildPath(const LcLayerDesc& layer) {
 }
 
 void RenderPath(BLContext& ctx, const LcLayerDesc& layer) {
-  // Same pivot transform as RenderRectangle - see the comment there.
   ctx.save();
-  ctx.translate(layer.pos_x, layer.pos_y);
-  ctx.translate(layer.anchor_x * layer.width, layer.anchor_y * layer.height);
-  ctx.rotate(layer.rotation);
-  ctx.scale(layer.scale_x, layer.scale_y);
-  ctx.translate(-layer.anchor_x * layer.width, -layer.anchor_y * layer.height);
-  ctx.set_global_alpha(layer.opacity);
+  ApplyLayerTransform(ctx, layer);
 
   const BLPath path = BuildPath(layer);
   const BLVar style =
