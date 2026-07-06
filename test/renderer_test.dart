@@ -407,5 +407,74 @@ void main() {
 
       expect(fileBytes.take(_bmpSignature.length).toList(), _bmpSignature);
     });
+
+    test(
+      'a long TextLayer wraps into more lines under a narrower size.width',
+      () async {
+        Future<int> inkRowCount(double width) async {
+          final scene = Scene(width: 400, height: 200)
+            ..add(
+              TextLayer(
+                transform: const LayerTransform(anchor: Point2D.zero),
+                size: Size2D(width, 200),
+                text: 'aaaa bbbb cccc dddd eeee ffff',
+                fontSize: 16,
+                color: Color32.white,
+              ),
+            );
+          final png = DecodedPng.decode(await renderer.render(scene));
+          var rows = 0;
+          for (var y = 0; y < png.height; y++) {
+            for (var x = 0; x < png.width; x++) {
+              final (_, _, _, a) = png.pixel(x, y);
+              if (a > 0) {
+                rows++;
+                break;
+              }
+            }
+          }
+          return rows;
+        }
+
+        final wideRows = await inkRowCount(400); // fits on one line
+        final narrowRows = await inkRowCount(60); // forces several lines
+
+        expect(narrowRows, greaterThan(wideRows));
+      },
+    );
+
+    test(
+      'an explicit newline forces a line break even with no size set',
+      () async {
+        Future<int> inkRowCount(String text) async {
+          final scene = Scene(width: 200, height: 200)
+            ..add(
+              TextLayer(
+                transform: const LayerTransform(anchor: Point2D.zero),
+                text: text,
+                fontSize: 16,
+                color: Color32.white,
+              ),
+            );
+          final png = DecodedPng.decode(await renderer.render(scene));
+          var rows = 0;
+          for (var y = 0; y < png.height; y++) {
+            for (var x = 0; x < png.width; x++) {
+              final (_, _, _, a) = png.pixel(x, y);
+              if (a > 0) {
+                rows++;
+                break;
+              }
+            }
+          }
+          return rows;
+        }
+
+        final oneLineRows = await inkRowCount('single line');
+        final twoLineRows = await inkRowCount('first line\nsecond line');
+
+        expect(twoLineRows, greaterThan(oneLineRows));
+      },
+    );
   });
 }

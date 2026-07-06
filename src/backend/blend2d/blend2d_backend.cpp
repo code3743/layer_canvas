@@ -392,6 +392,59 @@ BLFontFace ResolveFontFace(const LcLayerDesc& layer) {
 #endif
 }
 
+// Splits `text` on ASCII spaces into words (runs of consecutive spaces
+// collapse to a single separator, and leading/trailing spaces are dropped -
+// same simplification most text renderers make for word-wrap purposes).
+std::vector<std::string> SplitWords(const std::string& text) {
+  std::vector<std::string> words;
+  size_t start = 0;
+  for (size_t i = 0; i <= text.size(); ++i) {
+    if (i == text.size() || text[i] == ' ') {
+      if (i > start) words.push_back(text.substr(start, i - start));
+      start = i + 1;
+    }
+  }
+  return words;
+}
+
+// Greedily packs `paragraph`'s words into lines no wider than `max_width`
+// (measured with `font`), breaking only at word boundaries - a single word
+// wider than `max_width` overflows on its own line rather than being force-
+// broken mid-word (the same "overflow-wrap: normal" default most browsers
+// use). Appends each resulting line to `out_lines`; `paragraph` itself is
+// appended unsplit if it has no words (empty/all-spaces) or `max_width`
+// doesn't leave room to usefully wrap.
+void WrapParagraph(const std::string& paragraph, BLFont& font,
+                    double max_width, std::vector<std::string>& out_lines) {
+  const std::vector<std::string> words = SplitWords(paragraph);
+  if (words.empty()) {
+    out_lines.push_back(paragraph);
+    return;
+  }
+
+  auto measure = [&](const std::string& s) -> double {
+    BLGlyphBuffer gb;
+    gb.set_utf8_text(s.data(), s.size());
+    font.shape(gb);
+    BLTextMetrics tm;
+    font.get_text_metrics(gb, tm);
+    return tm.advance.x;
+  };
+
+  std::string current_line;
+  for (const std::string& word : words) {
+    const std::string candidate =
+        current_line.empty() ? word : current_line + " " + word;
+    if (!current_line.empty() && measure(candidate) > max_width) {
+      out_lines.push_back(current_line);
+      current_line = word;
+    } else {
+      current_line = candidate;
+    }
+  }
+  out_lines.push_back(current_line);
+}
+
 void RenderText(BLContext& ctx, const LcLayerDesc& layer) {
   ctx.save();
   ApplyLayerTransform(ctx, layer);
@@ -410,39 +463,65 @@ void RenderText(BLContext& ctx, const LcLayerDesc& layer) {
 
   const char* text = reinterpret_cast<const char*>(layer.text);
   const size_t text_size = static_cast<size_t>(layer.text_length);
+  const std::string full_text(text, text_size);
 
-  // Shape once up front to measure the laid-out width for alignment, then
-  // draw that same shaped buffer with fill_glyph_run below - fill_utf8_text
-  // would reshape identical work internally.
-  BLGlyphBuffer glyph_buffer;
-  glyph_buffer.set_utf8_text(text, text_size);
-  font.shape(glyph_buffer);
-
-  BLTextMetrics text_metrics;
-  font.get_text_metrics(glyph_buffer, text_metrics);
-
-  double x = 0.0;
-  if (layer.width > 0.0) {
-    const double text_width = text_metrics.advance.x;
-    if (layer.text_align == kTextAlignCenter) {
-      x = (layer.width - text_width) / 2.0;
-    } else if (layer.text_align == kTextAlignRight) {
-      x = layer.width - text_width;
+  // Split into paragraphs on explicit '\n' first - always, regardless of
+  // whether `layer.width` is set - then word-wrap each paragraph to fit
+  // `layer.width`, if given. A layer with no explicit width (intrinsic
+  // sizing) has nothing to wrap against, so its paragraphs are each kept as
+  // a single line, exactly like before this function supported '\n' at all.
+  std::vector<std::string> paragraphs;
+  {
+    size_t start = 0;
+    for (size_t i = 0; i <= full_text.size(); ++i) {
+      if (i == full_text.size() || full_text[i] == '\n') {
+        paragraphs.push_back(full_text.substr(start, i - start));
+        start = i + 1;
+      }
     }
   }
 
-  // Vertically centered within the box when a height is given; otherwise
-  // the text's top sits at the layer's position.
-  const BLFontMetrics& font_metrics = font.metrics();
-  const double y =
-      layer.height > 0.0
-          ? (layer.height - (font_metrics.ascent + font_metrics.descent)) /
-                    2.0 +
-                font_metrics.ascent
-          : font_metrics.ascent;
+  std::vector<std::string> lines;
+  for (const std::string& paragraph : paragraphs) {
+    if (layer.width > 0.0 && !paragraph.empty()) {
+      WrapParagraph(paragraph, font, layer.width, lines);
+    } else {
+      lines.push_back(paragraph);
+    }
+  }
 
-  ctx.fill_glyph_run(BLPoint(x, y), font, glyph_buffer.glyph_run(),
-                      BLRgba32(layer.text_color_argb));
+  const BLFontMetrics& font_metrics = font.metrics();
+  const double line_advance = font_metrics.ascent + font_metrics.descent;
+  const double block_height = line_advance * static_cast<double>(lines.size());
+
+  // The whole block is vertically centered within the box when a height is
+  // given; otherwise its top sits at the layer's position - same rule the
+  // single-line case used before, generalized to the block as a whole.
+  const double block_top =
+      layer.height > 0.0 ? (layer.height - block_height) / 2.0 : 0.0;
+
+  double y = block_top + font_metrics.ascent;
+  for (const std::string& line : lines) {
+    BLGlyphBuffer glyph_buffer;
+    glyph_buffer.set_utf8_text(line.data(), line.size());
+    font.shape(glyph_buffer);
+
+    double x = 0.0;
+    if (layer.width > 0.0) {
+      BLTextMetrics text_metrics;
+      font.get_text_metrics(glyph_buffer, text_metrics);
+      const double text_width = text_metrics.advance.x;
+      if (layer.text_align == kTextAlignCenter) {
+        x = (layer.width - text_width) / 2.0;
+      } else if (layer.text_align == kTextAlignRight) {
+        x = layer.width - text_width;
+      }
+    }
+
+    ctx.fill_glyph_run(BLPoint(x, y), font, glyph_buffer.glyph_run(),
+                        BLRgba32(layer.text_color_argb));
+    y += line_advance;
+  }
 
   ctx.restore();
 }

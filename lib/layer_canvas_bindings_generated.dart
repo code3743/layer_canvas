@@ -400,7 +400,7 @@ final class LcLayerDesc extends ffi.Struct {
   external double rect_corner_radius;
 
   /// UTF-8, NOT null-terminated.
-  @ffi.Array.multi([256])
+  @ffi.Array.multi([1024])
   external ffi.Array<ffi.Uint8> text;
 
   /// valid bytes in `text`, 0..LC_TEXT_MAX_BYTES.
@@ -485,6 +485,6 @@ final class LcLayerDesc extends ffi.Struct {
 
 final class LcImage extends ffi.Opaque {}
 
-const int LC_TEXT_MAX_BYTES = 256;
+const int LC_TEXT_MAX_BYTES = 1024;
 
 const int LC_FONT_FAMILY_MAX_BYTES = 64;

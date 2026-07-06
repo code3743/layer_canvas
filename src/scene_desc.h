@@ -159,8 +159,10 @@ typedef enum {
 
 // Maximum size, in UTF-8 bytes, of a TextLayer's `text` field below. Text
 // longer than this is truncated on the Dart side before it ever crosses the
-// FFI boundary — see lib/src/ffi/layer_descriptor.dart.
-#define LC_TEXT_MAX_BYTES 256
+// FFI boundary — see lib/src/ffi/layer_descriptor.dart. 1024 (rather than a
+// smaller cap) leaves enough room for a wrapped multi-line paragraph, not
+// just a short label.
+#define LC_TEXT_MAX_BYTES 1024
 
 // Maximum size, in UTF-8 bytes, of the `font_family` field below. Font
 // family names are short identifiers (not display text), so this cap is

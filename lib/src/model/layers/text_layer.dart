@@ -52,6 +52,14 @@ class TextWeight {
 /// When no [size] is given, the native backend uses the laid-out text bounds
 /// as the intrinsic size. [fontFamily] falls back to the backend's default
 /// system font when `null`.
+///
+/// [text] always breaks on an explicit `\n`. When [size]'s width is also
+/// set, [text] additionally word-wraps to fit it — greedily, breaking only
+/// at spaces (a single word wider than the box overflows on its own line
+/// rather than being split mid-word). With no width (intrinsic sizing),
+/// each paragraph stays a single, potentially overflowing, line. Either
+/// way, the whole wrapped block is vertically centered within [size]'s
+/// height when one is given, same as a single line already was.
 class TextLayer extends Layer {
   /// The text to render.
   final String text;
