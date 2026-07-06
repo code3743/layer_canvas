@@ -26,6 +26,7 @@ third_party/blend2d/blend2d/**/*_test.cpp
 # does, so it's repeated here explicitly to keep it out of the published
 # archive regardless.
 /build/
+.git/
 
 # README/GUIDE images are linked as absolute raw.githubusercontent.com
 # URLs (pub.dev doesn't reliably rewrite relative image paths), so the
