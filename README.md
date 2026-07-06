@@ -131,6 +131,16 @@ everything else — gradients, paths and polygons, SVG import, images,
 custom fonts, groups, the complete API reference, architecture, and how to
 build/test the package — see **[`doc/GUIDE.md`](https://github.com/code3743/layer_canvas/blob/main/doc/GUIDE.md)**.
 
+## Contributing
+
+Contributions are welcome! See
+[`CONTRIBUTING.md`](https://github.com/code3743/layer_canvas/blob/main/CONTRIBUTING.md)
+for how to set up a dev environment and submit a pull request, and our
+[`CODE_OF_CONDUCT.md`](https://github.com/code3743/layer_canvas/blob/main/CODE_OF_CONDUCT.md).
+To report a security vulnerability, see
+[`SECURITY.md`](https://github.com/code3743/layer_canvas/blob/main/SECURITY.md)
+instead of opening a public issue.
+
 ## License
 
 MIT — see [`LICENSE`](https://github.com/code3743/layer_canvas/blob/main/LICENSE). See [`THIRD_PARTY_NOTICES.md`](https://github.com/code3743/layer_canvas/blob/main/THIRD_PARTY_NOTICES.md)
