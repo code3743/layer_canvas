@@ -4,9 +4,13 @@ import 'dart:typed_data';
 import 'package:layer_canvas/layer_canvas.dart';
 import 'package:test/test.dart';
 
+import 'bmp_test_util.dart';
+
 import 'png_test_util.dart';
 
 const _pngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+const _bmpSignature = [0x42, 0x4D]; // 'BM'
+const _qoiSignature = [0x71, 0x6F, 0x69, 0x66]; // 'qoif'
 
 void main() {
   group('Renderer', () {
@@ -252,6 +256,53 @@ void main() {
     });
 
     test(
+      'renders to BMP with the correct magic bytes and pixel content',
+      () async {
+        final scene = Scene(width: 4, height: 4)
+          ..add(
+            RectangleLayer.filled(
+              width: 4,
+              height: 4,
+              color: Color32.fromRGB(10, 200, 40),
+            ),
+          );
+
+        final bytes = await renderer.render(scene, format: OutputFormat.bmp);
+
+        expect(bytes.take(_bmpSignature.length).toList(), _bmpSignature);
+        expect(readBmpPixel(bytes, 1, 1), (10, 200, 40));
+      },
+    );
+
+    test('renders to QOI with the correct magic bytes', () async {
+      final scene = Scene(width: 4, height: 4)
+        ..add(RectangleLayer.filled(width: 4, height: 4, color: Color32.white));
+
+      final bytes = await renderer.render(scene, format: OutputFormat.qoi);
+
+      expect(bytes.take(_qoiSignature.length).toList(), _qoiSignature);
+    });
+
+    test('renderToFile honors a non-default format', () async {
+      final scene = Scene(width: 4, height: 4)
+        ..add(RectangleLayer(size: const Size2D(4, 4)));
+
+      final tempFile = await File(
+        '${Directory.systemTemp.path}/layer_canvas_render_format_test.bmp',
+      ).create();
+      addTearDown(() => tempFile.delete());
+
+      await renderer.renderToFile(
+        scene,
+        tempFile.path,
+        format: OutputFormat.bmp,
+      );
+      final fileBytes = await tempFile.readAsBytes();
+
+      expect(fileBytes.take(_bmpSignature.length).toList(), _bmpSignature);
+    });
+
+    test(
       'a dash pattern paints strictly less coverage than a solid stroke',
       () async {
         Future<Uint8List> render(List<double> dashArray) async {
@@ -289,76 +340,70 @@ void main() {
       },
     );
 
-    test(
-      'a round stroke cap paints more coverage than a butt cap',
-      () async {
-        Future<Uint8List> render(StrokeCap cap) async {
-          final scene = Scene(width: 100, height: 100)
-            ..add(
-              PathLayer(
-                path: LayerPath(const [
-                  MoveTo(Point2D(20, 50)),
-                  LineTo(Point2D(80, 50)),
-                ]),
-                paint: LayerPaint(
-                  style: LayerPaintStyle.stroke,
-                  strokeWidth: 20,
-                  color: Color32.white,
-                  strokeCap: cap,
-                ),
+    test('a round stroke cap paints more coverage than a butt cap', () async {
+      Future<Uint8List> render(StrokeCap cap) async {
+        final scene = Scene(width: 100, height: 100)
+          ..add(
+            PathLayer(
+              path: LayerPath(const [
+                MoveTo(Point2D(20, 50)),
+                LineTo(Point2D(80, 50)),
+              ]),
+              paint: LayerPaint(
+                style: LayerPaintStyle.stroke,
+                strokeWidth: 20,
+                color: Color32.white,
+                strokeCap: cap,
               ),
-            );
-          return renderer.render(scene);
-        }
+            ),
+          );
+        return renderer.render(scene);
+      }
 
-        final buttPng = DecodedPng.decode(await render(StrokeCap.butt));
-        final roundPng = DecodedPng.decode(await render(StrokeCap.round));
+      final buttPng = DecodedPng.decode(await render(StrokeCap.butt));
+      final roundPng = DecodedPng.decode(await render(StrokeCap.round));
 
-        // A round cap adds a semicircular bulge past each endpoint on top
-        // of whatever the butt cap already covers, so it must paint more,
-        // not just different, pixels.
-        expect(
-          roundPng.countPaintedPixels(),
-          greaterThan(buttPng.countPaintedPixels()),
-        );
-      },
-    );
+      // A round cap adds a semicircular bulge past each endpoint on top
+      // of whatever the butt cap already covers, so it must paint more,
+      // not just different, pixels.
+      expect(
+        roundPng.countPaintedPixels(),
+        greaterThan(buttPng.countPaintedPixels()),
+      );
+    });
 
-    test(
-      'a miter join paints more coverage than a bevel join at a sharp '
-      'corner',
-      () async {
-        Future<Uint8List> render(StrokeJoin join) async {
-          final scene = Scene(width: 100, height: 100)
-            ..add(
-              PathLayer(
-                path: LayerPath(const [
-                  MoveTo(Point2D(10, 90)),
-                  LineTo(Point2D(50, 15)),
-                  LineTo(Point2D(90, 90)),
-                ]),
-                paint: LayerPaint(
-                  style: LayerPaintStyle.stroke,
-                  strokeWidth: 16,
-                  color: Color32.white,
-                  strokeJoin: join,
-                  miterLimit: 10,
-                ),
+    test('a miter join paints more coverage than a bevel join at a sharp '
+        'corner', () async {
+      Future<Uint8List> render(StrokeJoin join) async {
+        final scene = Scene(width: 100, height: 100)
+          ..add(
+            PathLayer(
+              path: LayerPath(const [
+                MoveTo(Point2D(10, 90)),
+                LineTo(Point2D(50, 15)),
+                LineTo(Point2D(90, 90)),
+              ]),
+              paint: LayerPaint(
+                style: LayerPaintStyle.stroke,
+                strokeWidth: 16,
+                color: Color32.white,
+                strokeJoin: join,
+                miterLimit: 10,
               ),
-            );
-          return renderer.render(scene);
-        }
+            ),
+          );
+        return renderer.render(scene);
+      }
 
-        final miterPng = DecodedPng.decode(await render(StrokeJoin.miter));
-        final bevelPng = DecodedPng.decode(await render(StrokeJoin.bevel));
+      final miterPng = DecodedPng.decode(await render(StrokeJoin.miter));
+      final bevelPng = DecodedPng.decode(await render(StrokeJoin.bevel));
 
-        // A miter join extends the sharp corner's outer edge into a point
-        // past where a bevel join cuts it flat, so it must paint more.
-        expect(
-          miterPng.countPaintedPixels(),
-          greaterThan(bevelPng.countPaintedPixels()),
-        );
-      },
-    );
+      // A miter join extends the sharp corner's outer edge into a point
+      // past where a bevel join cuts it flat, so it must paint more.
+      expect(
+        miterPng.countPaintedPixels(),
+        greaterThan(bevelPng.countPaintedPixels()),
+      );
+    });
   });
 }

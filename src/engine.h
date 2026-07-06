@@ -41,9 +41,10 @@ LC_EXPORT int32_t lc_image_encode_png(LcImage* image, uint8_t** out_data,
 LC_EXPORT void lc_buffer_free(uint8_t* data);
 
 // Composes a whole scene in one call: creates a `width` x `height` canvas,
-// paints `layers` onto it in array order, and encodes the result as PNG
-// into `*out_data`/`*out_len`. Returns 0 on success. On success, the
-// caller must release the buffer with lc_buffer_free.
+// paints `layers` onto it in array order, and encodes the result as
+// `format` (LcOutputFormat) into `*out_data`/`*out_len`. Returns 0 on
+// success. On success, the caller must release the buffer with
+// lc_buffer_free.
 //
 // The caller (the Dart side) is responsible for resolving stacking order
 // (Layer.zIndex) into `layers`' array order and dropping invisible layers
@@ -51,8 +52,8 @@ LC_EXPORT void lc_buffer_free(uint8_t* data);
 // `layer_count` is 0.
 LC_EXPORT int32_t lc_render_scene(int32_t width, int32_t height,
                                   const LcLayerDesc* layers,
-                                  int32_t layer_count, uint8_t** out_data,
-                                  size_t* out_len);
+                                  int32_t layer_count, int32_t format,
+                                  uint8_t** out_data, size_t* out_len);
 
 // Registers `data_size` bytes of font data (TTF/OTF) under `name` and
 // `weight` (100..900, CSS/OpenType scale), so any TextLayer whose

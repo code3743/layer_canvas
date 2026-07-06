@@ -25,6 +25,17 @@ typedef enum {
   LC_LAYER_KIND_PATH = 4,
 } LcLayerKind;
 
+// Encoded output formats a rendered canvas can be requested as (mirrors
+// lib/src/renderer/renderer.dart's OutputFormat, same declared order).
+// Deliberately no JPEG: this vendored Blend2D's JPEG codec only implements
+// decoding - encode_create_encoder returns BL_ERROR_IMAGE_ENCODER_NOT_PROVIDED
+// (see codec/jpegcodec.cpp), so it's not a usable output format today.
+typedef enum {
+  LC_OUTPUT_FORMAT_PNG = 0,
+  LC_OUTPUT_FORMAT_BMP = 1,
+  LC_OUTPUT_FORMAT_QOI = 2,
+} LcOutputFormat;
+
 // Paint (fill/stroke source) kinds a shape can request. Kept as its own
 // type - decoupled from any specific shape's fields below - so future
 // geometry kinds (circles, paths...) can reuse LcPaintDesc verbatim instead

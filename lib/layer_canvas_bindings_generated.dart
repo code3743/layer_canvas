@@ -39,9 +39,10 @@ external int lc_image_encode_png(
 external void lc_buffer_free(ffi.Pointer<ffi.Uint8> data);
 
 /// Composes a whole scene in one call: creates a `width` x `height` canvas,
-/// paints `layers` onto it in array order, and encodes the result as PNG
-/// into `*out_data`/`*out_len`. Returns 0 on success. On success, the
-/// caller must release the buffer with lc_buffer_free.
+/// paints `layers` onto it in array order, and encodes the result as
+/// `format` (LcOutputFormat) into `*out_data`/`*out_len`. Returns 0 on
+/// success. On success, the caller must release the buffer with
+/// lc_buffer_free.
 ///
 /// The caller (the Dart side) is responsible for resolving stacking order
 /// (Layer.zIndex) into `layers`' array order and dropping invisible layers
@@ -53,6 +54,7 @@ external void lc_buffer_free(ffi.Pointer<ffi.Uint8> data);
     ffi.Int32,
     ffi.Pointer<LcLayerDesc>,
     ffi.Int32,
+    ffi.Int32,
     ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
     ffi.Pointer<ffi.Size>,
   )
@@ -62,6 +64,7 @@ external int lc_render_scene(
   int height,
   ffi.Pointer<LcLayerDesc> layers,
   int layer_count,
+  int format,
   ffi.Pointer<ffi.Pointer<ffi.Uint8>> out_data,
   ffi.Pointer<ffi.Size> out_len,
 );
@@ -129,6 +132,27 @@ enum LcLayerKind {
     3 => LC_LAYER_KIND_IMAGE,
     4 => LC_LAYER_KIND_PATH,
     _ => throw ArgumentError('Unknown value for LcLayerKind: $value'),
+  };
+}
+
+/// Encoded output formats a rendered canvas can be requested as (mirrors
+/// lib/src/renderer/renderer.dart's OutputFormat, same declared order).
+/// Deliberately no JPEG: this vendored Blend2D's JPEG codec only implements
+/// decoding - encode_create_encoder returns BL_ERROR_IMAGE_ENCODER_NOT_PROVIDED
+/// (see codec/jpegcodec.cpp), so it's not a usable output format today.
+enum LcOutputFormat {
+  LC_OUTPUT_FORMAT_PNG(0),
+  LC_OUTPUT_FORMAT_BMP(1),
+  LC_OUTPUT_FORMAT_QOI(2);
+
+  final int value;
+  const LcOutputFormat(this.value);
+
+  static LcOutputFormat fromValue(int value) => switch (value) {
+    0 => LC_OUTPUT_FORMAT_PNG,
+    1 => LC_OUTPUT_FORMAT_BMP,
+    2 => LC_OUTPUT_FORMAT_QOI,
+    _ => throw ArgumentError('Unknown value for LcOutputFormat: $value'),
   };
 }
 

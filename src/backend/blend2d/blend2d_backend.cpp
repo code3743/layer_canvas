@@ -681,12 +681,27 @@ int32_t RenderLayers(LcBackendImage* image, const LcLayerDesc* layers,
   return 0;
 }
 
-int32_t EncodePng(LcBackendImage* image, uint8_t** out_data, size_t* out_len) {
+// Codec names Blend2D registers its built-in codecs under (mirrors
+// LcOutputFormat's declared order) - see e.g. bmp_codec.impl->name.assign
+// ("BMP") / qoi_codec.impl->name.assign("QOI") in the vendored codec
+// sources. JPEG is deliberately absent - see LcOutputFormat's doc comment
+// in scene_desc.h.
+constexpr const char* kOutputFormatCodecNames[] = {"PNG", "BMP", "QOI"};
+
+int32_t EncodeImage(LcBackendImage* image, int32_t format, uint8_t** out_data,
+                     size_t* out_len) {
   if (image == nullptr || out_data == nullptr || out_len == nullptr) return -1;
+  if (format < 0 ||
+      static_cast<size_t>(format) >=
+          (sizeof(kOutputFormatCodecNames) / sizeof(kOutputFormatCodecNames[0]))) {
+    return 4;
+  }
   auto* wrapper = reinterpret_cast<Blend2DImage*>(image);
 
   BLImageCodec codec;
-  if (codec.find_by_name("PNG") != BL_SUCCESS) return 1;
+  if (codec.find_by_name(kOutputFormatCodecNames[format]) != BL_SUCCESS) {
+    return 1;
+  }
 
   BLArray<uint8_t> encoded;
   if (wrapper->image.write_to_data(encoded, codec) != BL_SUCCESS) return 2;
@@ -709,7 +724,7 @@ extern "C" const LcGraphicsBackend* lc_backend_blend2d(void) {
       Destroy,
       Clear,
       RenderLayers,
-      EncodePng,
+      EncodeImage,
       RegisterFont,
       UnregisterFont,
   };
