@@ -1,7 +1,10 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:layer_canvas/layer_canvas.dart';
 import 'package:test/test.dart';
+
+import 'png_test_util.dart';
 
 const _pngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
@@ -247,5 +250,115 @@ void main() {
 
       expect(fileBytes.take(_pngSignature.length).toList(), _pngSignature);
     });
+
+    test(
+      'a dash pattern paints strictly less coverage than a solid stroke',
+      () async {
+        Future<Uint8List> render(List<double> dashArray) async {
+          final scene = Scene(width: 100, height: 100)
+            ..add(
+              PathLayer(
+                path: LayerPath.polygon([
+                  const Point2D(10, 10),
+                  const Point2D(90, 10),
+                  const Point2D(90, 90),
+                  const Point2D(10, 90),
+                ]),
+                paint: LayerPaint(
+                  style: LayerPaintStyle.stroke,
+                  strokeWidth: 4,
+                  color: Color32.white,
+                  dashArray: dashArray,
+                ),
+              ),
+            );
+          return renderer.render(scene);
+        }
+
+        final solidPng = DecodedPng.decode(await render(const []));
+        final dashedPng = DecodedPng.decode(await render(const [6, 6]));
+
+        // A 6-on/6-off dash should paint roughly half the solid stroke's
+        // coverage - assert strictly less, and well below the solid case,
+        // without pinning an exact ratio the rasterizer's antialiasing
+        // could nudge slightly.
+        final solidCoverage = solidPng.countPaintedPixels();
+        final dashedCoverage = dashedPng.countPaintedPixels();
+        expect(dashedCoverage, lessThan(solidCoverage));
+        expect(dashedCoverage, lessThan(solidCoverage * 0.75));
+      },
+    );
+
+    test(
+      'a round stroke cap paints more coverage than a butt cap',
+      () async {
+        Future<Uint8List> render(StrokeCap cap) async {
+          final scene = Scene(width: 100, height: 100)
+            ..add(
+              PathLayer(
+                path: LayerPath(const [
+                  MoveTo(Point2D(20, 50)),
+                  LineTo(Point2D(80, 50)),
+                ]),
+                paint: LayerPaint(
+                  style: LayerPaintStyle.stroke,
+                  strokeWidth: 20,
+                  color: Color32.white,
+                  strokeCap: cap,
+                ),
+              ),
+            );
+          return renderer.render(scene);
+        }
+
+        final buttPng = DecodedPng.decode(await render(StrokeCap.butt));
+        final roundPng = DecodedPng.decode(await render(StrokeCap.round));
+
+        // A round cap adds a semicircular bulge past each endpoint on top
+        // of whatever the butt cap already covers, so it must paint more,
+        // not just different, pixels.
+        expect(
+          roundPng.countPaintedPixels(),
+          greaterThan(buttPng.countPaintedPixels()),
+        );
+      },
+    );
+
+    test(
+      'a miter join paints more coverage than a bevel join at a sharp '
+      'corner',
+      () async {
+        Future<Uint8List> render(StrokeJoin join) async {
+          final scene = Scene(width: 100, height: 100)
+            ..add(
+              PathLayer(
+                path: LayerPath(const [
+                  MoveTo(Point2D(10, 90)),
+                  LineTo(Point2D(50, 15)),
+                  LineTo(Point2D(90, 90)),
+                ]),
+                paint: LayerPaint(
+                  style: LayerPaintStyle.stroke,
+                  strokeWidth: 16,
+                  color: Color32.white,
+                  strokeJoin: join,
+                  miterLimit: 10,
+                ),
+              ),
+            );
+          return renderer.render(scene);
+        }
+
+        final miterPng = DecodedPng.decode(await render(StrokeJoin.miter));
+        final bevelPng = DecodedPng.decode(await render(StrokeJoin.bevel));
+
+        // A miter join extends the sharp corner's outer edge into a point
+        // past where a bevel join cuts it flat, so it must paint more.
+        expect(
+          miterPng.countPaintedPixels(),
+          greaterThan(bevelPng.countPaintedPixels()),
+        );
+      },
+    );
   });
 }

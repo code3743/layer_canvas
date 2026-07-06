@@ -17,6 +17,7 @@ import '../model/layers/text_layer.dart';
 import '../model/paint.dart';
 import '../model/path.dart';
 import '../model/transform.dart';
+import '../renderer/path_dasher.dart';
 
 /// Fills a native [bindings.LcLayerDesc] slot from a Dart [Layer].
 ///
@@ -118,7 +119,16 @@ bool fillNativeLayerDesc(
     desc.path_paint_style = layer.paint.style.index;
     desc.path_stroke_width = layer.paint.strokeWidth;
     desc.path_fill_rule = layer.fillRule.index;
-    _fillPathGeometry(desc, layer.path, ownedBuffers);
+
+    // A non-empty dashArray is resolved into plain on-segment geometry here
+    // (see path_dasher.dart) rather than sent to the native side, which
+    // can't render it (Blend2D's own dash support is a no-op - see
+    // scene_desc.h's LcPaintDesc doc comment).
+    final dashArray = layer.paint.dashArray;
+    final geometry = dashArray.isEmpty
+        ? layer.path
+        : dashPath(layer.path, dashArray, layer.paint.dashOffset);
+    _fillPathGeometry(desc, geometry, ownedBuffers);
     return true;
   }
 
@@ -128,7 +138,13 @@ bool fillNativeLayerDesc(
 
 /// Fills a native [bindings.LcPaintDesc] slot from a [LayerPaint] — solid
 /// [LayerPaint.color] when [LayerPaint.gradient] is unset, otherwise the
-/// gradient's kind, geometry, extend mode and stops.
+/// gradient's kind, geometry, extend mode and stops; plus stroke cap/join/
+/// miter limit, which apply regardless of fill source.
+///
+/// [LayerPaint.dashArray]/[LayerPaint.dashOffset] are deliberately not
+/// marshaled here — see `path_dasher.dart`'s doc comment for why a dash
+/// pattern is resolved into plain path geometry on the Dart side instead
+/// of being sent to the native side at all.
 ///
 /// Stops are copied into a native buffer appended to [ownedBuffers] (option
 /// (b): pointer + count, same ownership pattern as `ImageLayer`'s encoded
@@ -139,6 +155,18 @@ void _fillPaintDesc(
   LayerPaint paint,
   List<Pointer> ownedBuffers,
 ) {
+  desc.stroke_cap = switch (paint.strokeCap) {
+    StrokeCap.butt => bindings.LcStrokeCap.LC_STROKE_CAP_BUTT.value,
+    StrokeCap.round => bindings.LcStrokeCap.LC_STROKE_CAP_ROUND.value,
+    StrokeCap.square => bindings.LcStrokeCap.LC_STROKE_CAP_SQUARE.value,
+  };
+  desc.stroke_join = switch (paint.strokeJoin) {
+    StrokeJoin.miter => bindings.LcStrokeJoin.LC_STROKE_JOIN_MITER.value,
+    StrokeJoin.round => bindings.LcStrokeJoin.LC_STROKE_JOIN_ROUND.value,
+    StrokeJoin.bevel => bindings.LcStrokeJoin.LC_STROKE_JOIN_BEVEL.value,
+  };
+  desc.stroke_miter_limit = paint.miterLimit;
+
   final gradient = paint.gradient;
   if (gradient == null) {
     desc.kind = bindings.LcPaintKind.LC_PAINT_KIND_SOLID.value;
