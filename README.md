@@ -11,16 +11,18 @@ This is an independent project built on top of Blend2D; it is not an
 official Blend2D binding, wrapper, or port, and is not affiliated with or
 endorsed by the Blend2D project.
 
-> **Flutter integration in progress.** `layer_canvas` itself intentionally
+> **Using this from a Flutter app?** `layer_canvas` itself intentionally
 > stays Flutter-free — its own types (`Color32`, `LayerPaint`, `Point2D`,
 > `TextWeight`...) avoid colliding with `dart:ui`/`material.dart` so the same
-> API works in a plain Dart script, a server, or a Flutter app. A companion
-> package, `layer_canvas_flutter`, is in development to remove that
-> abstraction gap for Flutter apps specifically: widgets and adapters that
-> accept `Color`, `Offset`, `FontWeight`, `BoxFit`, etc. directly, plus
-> Flutter-specific conveniences like asset-based font preloading and
-> `devicePixelRatio`-aware rendering — so Flutter developers never have to
-> juggle two parallel APIs.
+> API works in a plain Dart script, a server, or a Flutter app. For Flutter
+> specifically, we recommend
+> [`layer_canvas_flutter`](https://pub.dev/packages/layer_canvas_flutter)
+> instead of depending on this package directly — it removes that
+> abstraction gap with widgets and adapters that accept `Color`, `Offset`,
+> `FontWeight`, `BoxFit`, `Gradient`, etc. directly, plus Flutter-specific
+> conveniences like asset-based font preloading, `devicePixelRatio`-aware
+> rendering, and tap hit-testing — so you never have to juggle two parallel
+> APIs.
 
 ## Quick start
 
