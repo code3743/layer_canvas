@@ -1,3 +1,21 @@
+## 0.1.0-beta.5
+
+* **Stroke cap/join/miter limit** — `LayerPaint.strokeCap` (`butt`/`round`/
+  `square`), `strokeJoin` (`miter`/`round`/`bevel`), and `miterLimit` control
+  how a stroke's open ends and corners are drawn, on both `RectangleLayer`
+  and `PathLayer`.
+* **Dash patterns** — `LayerPaint.dashArray`/`dashOffset` on `PathLayer`
+  strokes (an odd-length array repeats, matching SVG/CSS). Resolved into
+  plain path geometry on the Dart side rather than delegated to Blend2D,
+  whose own dash support is a long-standing no-op
+  ([blend2d/blend2d#48](https://github.com/blend2d/blend2d/issues/48));
+  not currently supported on `RectangleLayer`, which has no path geometry
+  of its own to dash.
+* **`OutputFormat`** — `Renderer.render`/`renderToFile` take a `format`
+  parameter (`png`, the default, `bmp`, or `qoi`) to encode as something
+  other than PNG. No JPEG: this build's JPEG codec only decodes, it can't
+  encode.
+
 ## 0.1.0-beta.4
 
 * **`hitTestScene`** — given a `Scene` and a point (in its own logical
