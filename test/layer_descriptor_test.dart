@@ -497,6 +497,126 @@ void main() {
       expect(desc.image_data.asTypedList(desc.image_data_size), pngBytes);
     });
   });
+
+  group('fillNativeLayerDesc (stroke styling)', () {
+    late Pointer<bindings.LcLayerDesc> descPtr;
+    late bindings.LcLayerDesc desc;
+    late List<Pointer> ownedBuffers;
+
+    setUp(() {
+      descPtr = calloc<bindings.LcLayerDesc>();
+      desc = descPtr.ref;
+      ownedBuffers = [];
+    });
+
+    tearDown(() {
+      for (final buffer in ownedBuffers) {
+        calloc.free(buffer);
+      }
+      calloc.free(descPtr);
+    });
+
+    test('defaults marshal as butt/miter', () {
+      fillNativeLayerDesc(
+        desc,
+        RectangleLayer(
+          size: const Size2D(10, 10),
+          paint: const LayerPaint(style: LayerPaintStyle.stroke),
+        ),
+        transform: const LayerTransform(),
+        opacity: 1.0,
+        ownedBuffers: ownedBuffers,
+      );
+
+      expect(desc.rect_paint.stroke_cap, StrokeCap.butt.index);
+      expect(desc.rect_paint.stroke_join, StrokeJoin.miter.index);
+      expect(desc.rect_paint.stroke_miter_limit, 4.0);
+    });
+
+    test('marshals a non-default cap/join/miter', () {
+      fillNativeLayerDesc(
+        desc,
+        RectangleLayer(
+          size: const Size2D(10, 10),
+          paint: const LayerPaint(
+            style: LayerPaintStyle.stroke,
+            strokeCap: StrokeCap.round,
+            strokeJoin: StrokeJoin.bevel,
+            miterLimit: 2.5,
+          ),
+        ),
+        transform: const LayerTransform(),
+        opacity: 1.0,
+        ownedBuffers: ownedBuffers,
+      );
+
+      expect(desc.rect_paint.stroke_cap, StrokeCap.round.index);
+      expect(desc.rect_paint.stroke_join, StrokeJoin.bevel.index);
+      expect(desc.rect_paint.stroke_miter_limit, 2.5);
+    });
+
+    test('reuses paint marshaling — PathLayer stroke settings marshal '
+        'through path_paint', () {
+      fillNativeLayerDesc(
+        desc,
+        PathLayer(
+          path: LayerPath.circle(const Point2D(5, 5), 5),
+          paint: const LayerPaint(
+            style: LayerPaintStyle.stroke,
+            strokeCap: StrokeCap.square,
+          ),
+        ),
+        transform: const LayerTransform(),
+        opacity: 1.0,
+        ownedBuffers: ownedBuffers,
+      );
+
+      expect(desc.path_paint.stroke_cap, StrokeCap.square.index);
+    });
+
+    test(
+      'a dashArray is resolved into plain dashed geometry, never sent to '
+      'the native dash fields (which no longer exist on LcPaintDesc)',
+      () {
+        // LayerPath.circle is a single closed loop long enough that a [4, 4]
+        // dash produces at least one full on/off cycle — if dashing were
+        // (incorrectly) still expected to cross the FFI boundary as data
+        // rather than be pre-resolved into geometry, the plain circle's
+        // path_command_count below would differ.
+        final undashedCount = () {
+          fillNativeLayerDesc(
+            desc,
+            PathLayer(
+              path: LayerPath.circle(const Point2D(50, 50), 50),
+              paint: const LayerPaint(style: LayerPaintStyle.stroke),
+            ),
+            transform: const LayerTransform(),
+            opacity: 1.0,
+            ownedBuffers: ownedBuffers,
+          );
+          return desc.path_command_count;
+        }();
+
+        fillNativeLayerDesc(
+          desc,
+          PathLayer(
+            path: LayerPath.circle(const Point2D(50, 50), 50),
+            paint: const LayerPaint(
+              style: LayerPaintStyle.stroke,
+              dashArray: [4, 4],
+            ),
+          ),
+          transform: const LayerTransform(),
+          opacity: 1.0,
+          ownedBuffers: ownedBuffers,
+        );
+
+        // Dashing replaces the two-arc circle with many short MoveTo/LineTo
+        // runs, so the command count must grow substantially.
+        expect(desc.path_command_count, greaterThan(undashedCount * 2));
+      },
+    );
+  });
 }
 
 List<int> _readText(bindings.LcLayerDesc desc) => [

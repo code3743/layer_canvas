@@ -173,6 +173,43 @@ enum LcExtendMode {
   };
 }
 
+/// Shape of a stroke's open ends (mirrors lib/src/model/paint.dart's
+/// StrokeCap, same declared order). Only meaningful for a stroked paint.
+enum LcStrokeCap {
+  LC_STROKE_CAP_BUTT(0),
+  LC_STROKE_CAP_ROUND(1),
+  LC_STROKE_CAP_SQUARE(2);
+
+  final int value;
+  const LcStrokeCap(this.value);
+
+  static LcStrokeCap fromValue(int value) => switch (value) {
+    0 => LC_STROKE_CAP_BUTT,
+    1 => LC_STROKE_CAP_ROUND,
+    2 => LC_STROKE_CAP_SQUARE,
+    _ => throw ArgumentError('Unknown value for LcStrokeCap: $value'),
+  };
+}
+
+/// Shape drawn where two stroked segments meet (mirrors
+/// lib/src/model/paint.dart's StrokeJoin, same declared order). Only
+/// meaningful for a stroked paint.
+enum LcStrokeJoin {
+  LC_STROKE_JOIN_MITER(0),
+  LC_STROKE_JOIN_ROUND(1),
+  LC_STROKE_JOIN_BEVEL(2);
+
+  final int value;
+  const LcStrokeJoin(this.value);
+
+  static LcStrokeJoin fromValue(int value) => switch (value) {
+    0 => LC_STROKE_JOIN_MITER,
+    1 => LC_STROKE_JOIN_ROUND,
+    2 => LC_STROKE_JOIN_BEVEL,
+    _ => throw ArgumentError('Unknown value for LcStrokeJoin: $value'),
+  };
+}
+
 /// A single color stop within a gradient's ramp. `offset` is 0..1 along the
 /// gradient (mirrors lib/src/model/gradient.dart's GradientStop).
 final class LcGradientStop extends ffi.Struct {
@@ -218,6 +255,17 @@ final class LcPaintDesc extends ffi.Struct {
 
   @ffi.Int32()
   external int stop_count;
+
+  /// LcStrokeCap
+  @ffi.Int32()
+  external int stroke_cap;
+
+  /// LcStrokeJoin
+  @ffi.Int32()
+  external int stroke_join;
+
+  @ffi.Double()
+  external double stroke_miter_limit;
 }
 
 /// A single step of a PathLayer's geometry (mirrors lib/src/model/path.dart's

@@ -45,6 +45,23 @@ typedef enum {
   LC_EXTEND_MODE_REFLECT = 2,
 } LcExtendMode;
 
+// Shape of a stroke's open ends (mirrors lib/src/model/paint.dart's
+// StrokeCap, same declared order). Only meaningful for a stroked paint.
+typedef enum {
+  LC_STROKE_CAP_BUTT = 0,
+  LC_STROKE_CAP_ROUND = 1,
+  LC_STROKE_CAP_SQUARE = 2,
+} LcStrokeCap;
+
+// Shape drawn where two stroked segments meet (mirrors
+// lib/src/model/paint.dart's StrokeJoin, same declared order). Only
+// meaningful for a stroked paint.
+typedef enum {
+  LC_STROKE_JOIN_MITER = 0,
+  LC_STROKE_JOIN_ROUND = 1,
+  LC_STROKE_JOIN_BEVEL = 2,
+} LcStrokeJoin;
+
 // A single color stop within a gradient's ramp. `offset` is 0..1 along the
 // gradient (mirrors lib/src/model/gradient.dart's GradientStop).
 typedef struct {
@@ -78,6 +95,24 @@ typedef struct {
   // gradient kinds only (NULL/0 when kind == LC_PAINT_KIND_SOLID).
   const LcGradientStop* stops;
   int32_t stop_count;
+
+  // Stroke styling - meaningful only when the shape's paint style is
+  // stroke or fillAndStroke (mirrors lib/src/model/paint.dart's LayerPaint
+  // stroke fields). Kept on LcPaintDesc rather than duplicated per shape
+  // kind, same rationale as this struct's own doc comment above.
+  //
+  // Deliberately no dash_array/dash_offset here: Blend2D's stroker accepts
+  // a dash pattern but never actually applies it when generating stroke
+  // geometry (https://github.com/blend2d/blend2d/issues/48, open since
+  // 2019 - confirmed against this vendored copy by grepping
+  // core/pathstroke.cpp for "dash": zero matches). Dashing is instead
+  // resolved into plain MoveTo/LineTo geometry on the Dart side before it
+  // ever crosses the FFI boundary - see
+  // lib/src/renderer/path_dasher.dart - so a dashed PathLayer arrives here
+  // as an already-dashed path with a perfectly ordinary solid stroke.
+  int32_t stroke_cap;   // LcStrokeCap
+  int32_t stroke_join;  // LcStrokeJoin
+  double stroke_miter_limit;
 } LcPaintDesc;
 
 // A single step of a PathLayer's geometry (mirrors lib/src/model/path.dart's

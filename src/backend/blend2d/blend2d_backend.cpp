@@ -206,6 +206,45 @@ constexpr int32_t kPaintStyleFillAndStroke = 2;
 constexpr BLExtendMode kGradientExtendModes[] = {
     BL_EXTEND_MODE_PAD, BL_EXTEND_MODE_REPEAT, BL_EXTEND_MODE_REFLECT};
 
+// Stroke caps an LcPaintDesc can request (mirrors lib/src/model/paint.dart's
+// StrokeCap, in the same declared order) - Blend2D's own BLStrokeCap values
+// don't line up with this order (BL_STROKE_CAP_SQUARE is 1, not 2), so this
+// can't be a straight cast.
+constexpr BLStrokeCap kStrokeCaps[] = {
+    BL_STROKE_CAP_BUTT, BL_STROKE_CAP_ROUND, BL_STROKE_CAP_SQUARE};
+
+// Stroke joins an LcPaintDesc can request (mirrors lib/src/model/paint.dart's
+// StrokeJoin, in the same declared order). StrokeJoin.miter maps to
+// MITER_BEVEL - Blend2D's "clamp to bevel past the miter limit" variant,
+// matching the SVG/CSS `miter` default.
+constexpr BLStrokeJoin kStrokeJoins[] = {
+    BL_STROKE_JOIN_MITER_BEVEL, BL_STROKE_JOIN_ROUND, BL_STROKE_JOIN_BEVEL};
+
+// Applies `paint`'s stroke styling (cap/join/miter limit/dash pattern) onto
+// `ctx`. Called right before a stroke_* call, alongside the existing
+// set_stroke_width - geometric stroke properties only, independent of the
+// fill/stroke source BuildPaintStyle resolves separately. Pure BLPath
+// geometry (see core/pathstroke.cpp), so - unlike compositing operators -
+// this works identically with or without the JIT pipeline.
+void ApplyStrokeStyle(BLContext& ctx, const LcPaintDesc& paint) {
+  const BLStrokeCap cap =
+      (paint.stroke_cap >= 0 &&
+       static_cast<size_t>(paint.stroke_cap) <
+           (sizeof(kStrokeCaps) / sizeof(kStrokeCaps[0])))
+          ? kStrokeCaps[paint.stroke_cap]
+          : BL_STROKE_CAP_BUTT;
+  ctx.set_stroke_caps(cap);
+
+  const BLStrokeJoin join =
+      (paint.stroke_join >= 0 &&
+       static_cast<size_t>(paint.stroke_join) <
+           (sizeof(kStrokeJoins) / sizeof(kStrokeJoins[0])))
+          ? kStrokeJoins[paint.stroke_join]
+          : BL_STROKE_JOIN_MITER_BEVEL;
+  ctx.set_stroke_join(join);
+  ctx.set_stroke_miter_limit(paint.stroke_miter_limit);
+}
+
 // Builds the fill/stroke style described by `paint` - a solid color or a
 // gradient - as a BLVar so callers can pass it straight to
 // fill_round_rect/stroke_round_rect regardless of which kind it is.
@@ -306,6 +345,7 @@ void RenderRectangle(BLContext& ctx, const LcLayerDesc& layer) {
   if (layer.rect_paint_style == kPaintStyleStroke ||
       layer.rect_paint_style == kPaintStyleFillAndStroke) {
     ctx.set_stroke_width(layer.rect_stroke_width);
+    ApplyStrokeStyle(ctx, layer.rect_paint);
     ctx.stroke_round_rect(shape, style);
   }
 
@@ -597,6 +637,7 @@ void RenderPath(BLContext& ctx, const LcLayerDesc& layer) {
   if (layer.path_paint_style == kPaintStyleStroke ||
       layer.path_paint_style == kPaintStyleFillAndStroke) {
     ctx.set_stroke_width(layer.path_stroke_width);
+    ApplyStrokeStyle(ctx, layer.path_paint);
     ctx.stroke_path(path, style);
   }
 
