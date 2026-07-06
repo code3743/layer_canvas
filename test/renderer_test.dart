@@ -4,9 +4,12 @@ import 'dart:typed_data';
 import 'package:layer_canvas/layer_canvas.dart';
 import 'package:test/test.dart';
 
+import 'bmp_test_util.dart';
 import 'png_test_util.dart';
 
 const _pngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+const _bmpSignature = [0x42, 0x4D]; // 'BM'
+const _qoiSignature = [0x71, 0x6F, 0x69, 0x66]; // 'qoif'
 
 void main() {
   group('Renderer', () {
@@ -360,5 +363,49 @@ void main() {
         );
       },
     );
+
+    test('renders to BMP with the correct magic bytes and pixel content', () async {
+      final scene = Scene(width: 4, height: 4)
+        ..add(
+          RectangleLayer.filled(
+            width: 4,
+            height: 4,
+            color: Color32.fromRGB(10, 200, 40),
+          ),
+        );
+
+      final bytes = await renderer.render(scene, format: OutputFormat.bmp);
+
+      expect(bytes.take(_bmpSignature.length).toList(), _bmpSignature);
+      expect(readBmpPixel(bytes, 1, 1), (10, 200, 40));
+    });
+
+    test('renders to QOI with the correct magic bytes', () async {
+      final scene = Scene(width: 4, height: 4)
+        ..add(RectangleLayer.filled(width: 4, height: 4, color: Color32.white));
+
+      final bytes = await renderer.render(scene, format: OutputFormat.qoi);
+
+      expect(bytes.take(_qoiSignature.length).toList(), _qoiSignature);
+    });
+
+    test('renderToFile honors a non-default format', () async {
+      final scene = Scene(width: 4, height: 4)
+        ..add(RectangleLayer(size: const Size2D(4, 4)));
+
+      final tempFile = await File(
+        '${Directory.systemTemp.path}/layer_canvas_render_format_test.bmp',
+      ).create();
+      addTearDown(() => tempFile.delete());
+
+      await renderer.renderToFile(
+        scene,
+        tempFile.path,
+        format: OutputFormat.bmp,
+      );
+      final fileBytes = await tempFile.readAsBytes();
+
+      expect(fileBytes.take(_bmpSignature.length).toList(), _bmpSignature);
+    });
   });
 }
