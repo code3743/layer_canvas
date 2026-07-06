@@ -180,6 +180,50 @@ scene.add(PathLayer(
 ));
 ```
 
+### Stroke styling
+
+`LayerPaint` controls how a stroke's open ends (`strokeCap`) and corners
+(`strokeJoin`) are drawn, alongside `strokeWidth`:
+
+```dart
+scene.add(PathLayer(
+  path: LayerPath([
+    MoveTo(Point2D(40, 200)),
+    LineTo(Point2D(200, 40)),
+    LineTo(Point2D(360, 200)),
+  ]),
+  paint: const LayerPaint(
+    style: LayerPaintStyle.stroke,
+    strokeWidth: 16,
+    color: Color32.fromRGB(0, 180, 90),
+    strokeCap: StrokeCap.round,    // butt | round | square
+    strokeJoin: StrokeJoin.round,  // miter | round | bevel
+    miterLimit: 4.0,               // only meaningful for StrokeJoin.miter
+  ),
+));
+```
+
+`dashArray`/`dashOffset` split a `PathLayer`'s stroke into on/off segments
+(`[4, 2]` for a 4-on/2-off dash; an odd-length list repeats, matching
+SVG/CSS: `[4]` behaves as `[4, 4]`):
+
+```dart
+scene.add(PathLayer(
+  path: LayerPath.circle(const Point2D(100, 100), 80),
+  paint: const LayerPaint(
+    style: LayerPaintStyle.stroke,
+    strokeWidth: 6,
+    color: Color32.fromRGB(255, 200, 0),
+    dashArray: [14, 8],
+  ),
+));
+```
+
+Dashing is resolved into plain path geometry before rendering rather than
+delegated to the native engine, so it's only supported on `PathLayer` —
+`RectangleLayer` has no `LayerPath` of its own to dash, and its
+`dashArray`/`dashOffset` currently have no effect.
+
 ### Watermark overlay
 
 ```dart
@@ -423,6 +467,16 @@ element-by-element instead.
 await Renderer().renderToFile(scene, '/tmp/output.png');
 ```
 
+`render`/`renderToFile` take an `OutputFormat` (`png`, the default, `bmp`,
+or `qoi`) to encode as something other than PNG:
+
+```dart
+await Renderer().renderToFile(scene, '/tmp/output.bmp', format: OutputFormat.bmp);
+```
+
+There's no JPEG: this package's native engine can *decode* JPEG (for
+`ImageLayer` sources) but its vendored Blend2D build can't *encode* one.
+
 ## API overview
 
 ### `Scene`
@@ -488,6 +542,9 @@ final Uint8List bytes = await renderer.render(scene);
 
 // Writes PNG to path
 await renderer.renderToFile(scene, outputPath);
+
+// Either method takes an OutputFormat: png (default), bmp, or qoi.
+final bmpBytes = await renderer.render(scene, format: OutputFormat.bmp);
 ```
 
 Throws `RenderException` (a subtype of `Exception`) if the native engine
@@ -549,6 +606,11 @@ const LayerPaint(
   color: Color32.fromRGB(255, 0, 0),
   style: LayerPaintStyle.fillAndStroke, // fill | stroke | fillAndStroke
   strokeWidth: 2.0,
+  strokeCap: StrokeCap.butt,     // butt | round | square
+  strokeJoin: StrokeJoin.miter,  // miter | round | bevel
+  miterLimit: 4.0,
+  dashArray: [],                 // e.g. [4, 2] — PathLayer only, see above
+  dashOffset: 0.0,
   gradient: null, // Linear/Radial/ConicGradient — see Gradients above
 )
 ```

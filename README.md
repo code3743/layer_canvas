@@ -86,6 +86,9 @@ groups) in the [full guide](https://github.com/code3743/layer_canvas/blob/main/d
   no separate build step, no CMake invocation needed
 - **Gradients & vector paths** — linear/radial/conic gradients, arbitrary
   Bézier paths, circles/ellipses, and SVG import
+- **Stroke styling** — cap (butt/round/square), join (miter/round/bevel),
+  miter limit, and dash patterns on `PathLayer`
+- **Multiple output formats** — PNG (default), BMP, or QOI
 - **Native text rendering** — `TextLayer` ships with an embedded Roboto
   (regular/bold, multiple weights), and apps can register their own fonts
   via `FontRegistry`
@@ -118,7 +121,7 @@ Add to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  layer_canvas: ^0.1.0-beta.3
+  layer_canvas: ^0.1.0-beta.5
 ```
 
 No additional native build setup is required — the Blend2D library is compiled
