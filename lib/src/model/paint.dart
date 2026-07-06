@@ -131,4 +131,36 @@ class LayerPaint {
       'strokeWidth: $strokeWidth, strokeCap: $strokeCap, '
       'strokeJoin: $strokeJoin, miterLimit: $miterLimit, '
       'dashArray: $dashArray, dashOffset: $dashOffset, gradient: $gradient)';
+
+  /// Converts to a JSON-safe map, see `Scene.toJson`.
+  Map<String, Object?> toJson() => {
+    'color': color.toJson(),
+    'style': style.name,
+    'strokeWidth': strokeWidth,
+    'strokeCap': strokeCap.name,
+    'strokeJoin': strokeJoin.name,
+    'miterLimit': miterLimit,
+    'dashArray': dashArray,
+    'dashOffset': dashOffset,
+    'gradient': gradient?.toJson(),
+  };
+
+  /// Reconstructs a [LayerPaint] from [toJson]'s output.
+  factory LayerPaint.fromJson(Map<String, Object?> json) {
+    final gradientJson = json['gradient'] as Map<String, Object?>?;
+    return LayerPaint(
+      color: Color32.fromJson(json['color'] as int),
+      style: LayerPaintStyle.values.byName(json['style'] as String),
+      strokeWidth: (json['strokeWidth'] as num).toDouble(),
+      strokeCap: StrokeCap.values.byName(json['strokeCap'] as String),
+      strokeJoin: StrokeJoin.values.byName(json['strokeJoin'] as String),
+      miterLimit: (json['miterLimit'] as num).toDouble(),
+      dashArray: [
+        for (final length in json['dashArray'] as List<Object?>)
+          (length as num).toDouble(),
+      ],
+      dashOffset: (json['dashOffset'] as num).toDouble(),
+      gradient: gradientJson == null ? null : Gradient.fromJson(gradientJson),
+    );
+  }
 }

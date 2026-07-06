@@ -94,4 +94,31 @@ class PathLayer extends Layer {
     'paint': paint,
     'fillRule': fillRule.name,
   };
+
+  @override
+  Map<String, Object?> toJson() => {
+    ...commonJson(),
+    'properties': {
+      'path': path.toJson(),
+      'paint': paint.toJson(),
+      'fillRule': fillRule.name,
+    },
+  };
+
+  /// Reconstructs a [PathLayer] from [toJson]'s output.
+  factory PathLayer.fromJson(Map<String, Object?> json) {
+    final common = parseCommonLayerJson(json);
+    final properties = json['properties'] as Map<String, Object?>;
+    return PathLayer(
+      id: common.id,
+      transform: common.transform,
+      size: common.size,
+      opacity: common.opacity,
+      zIndex: common.zIndex,
+      visible: common.visible,
+      path: LayerPath.fromJson(properties['path'] as Map<String, Object?>),
+      paint: LayerPaint.fromJson(properties['paint'] as Map<String, Object?>),
+      fillRule: FillRule.values.byName(properties['fillRule'] as String),
+    );
+  }
 }

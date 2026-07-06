@@ -68,4 +68,10 @@ class Color32 {
 
   @override
   String toString() => 'Color32(0x${value.toRadixString(16).padLeft(8, '0')})';
+
+  /// Converts to its packed `0xAARRGGBB` [value] — see `Scene.toJson`.
+  int toJson() => value;
+
+  /// Reconstructs a [Color32] from [toJson]'s output.
+  factory Color32.fromJson(int json) => Color32(json);
 }

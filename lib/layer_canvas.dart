@@ -16,6 +16,7 @@ export 'src/model/layers/text_layer.dart';
 export 'src/model/paint.dart';
 export 'src/model/path.dart';
 export 'src/model/scene.dart';
+export 'src/model/serialization.dart';
 export 'src/model/transform.dart';
 export 'src/renderer/font_registry.dart';
 export 'src/renderer/hit_testing.dart';

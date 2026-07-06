@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 /// Where the raw image data for an [ImageLayer] (or a [Scene] background)
@@ -22,6 +23,13 @@ abstract class LayerImageSource {
   /// An image already available as encoded [bytes] in memory. See
   /// [MemoryImageSource].
   const factory LayerImageSource.memory(Uint8List bytes) = MemoryImageSource;
+
+  /// Converts to a JSON-safe map, see `Scene.toJson`. A subclass added
+  /// outside this file (per this class's own doc comment above) needs its
+  /// own `toJson` override, plus a decoder registered via
+  /// `LayerRegistry.registerImageSource` to round-trip through
+  /// [Scene.fromJson].
+  Map<String, Object?> toJson();
 }
 
 /// An image read from a file path on disk at render time.
@@ -34,6 +42,13 @@ class FileImageSource extends LayerImageSource {
 
   @override
   String toString() => 'FileImageSource($path)';
+
+  @override
+  Map<String, Object?> toJson() => {'type': 'file', 'path': path};
+
+  /// Reconstructs a [FileImageSource] from [toJson]'s output.
+  factory FileImageSource.fromJson(Map<String, Object?> json) =>
+      FileImageSource(json['path'] as String);
 }
 
 /// An image already available as encoded bytes (PNG/JPEG/etc.) in memory.
@@ -46,4 +61,14 @@ class MemoryImageSource extends LayerImageSource {
 
   @override
   String toString() => 'MemoryImageSource(${bytes.lengthInBytes} bytes)';
+
+  @override
+  Map<String, Object?> toJson() => {
+    'type': 'memory',
+    'bytes': base64Encode(bytes),
+  };
+
+  /// Reconstructs a [MemoryImageSource] from [toJson]'s output.
+  factory MemoryImageSource.fromJson(Map<String, Object?> json) =>
+      MemoryImageSource(base64Decode(json['bytes'] as String));
 }

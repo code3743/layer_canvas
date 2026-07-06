@@ -37,6 +37,15 @@ class Point2D {
 
   @override
   String toString() => 'Point2D($x, $y)';
+
+  /// Converts to a JSON-safe map, see `Scene.toJson`.
+  Map<String, Object?> toJson() => {'x': x, 'y': y};
+
+  /// Reconstructs a [Point2D] from [toJson]'s output.
+  factory Point2D.fromJson(Map<String, Object?> json) => Point2D(
+    (json['x'] as num).toDouble(),
+    (json['y'] as num).toDouble(),
+  );
 }
 
 /// A 2D size in the [Scene]'s logical pixel space.
@@ -67,4 +76,13 @@ class Size2D {
 
   @override
   String toString() => 'Size2D($width x $height)';
+
+  /// Converts to a JSON-safe map, see `Scene.toJson`.
+  Map<String, Object?> toJson() => {'width': width, 'height': height};
+
+  /// Reconstructs a [Size2D] from [toJson]'s output.
+  factory Size2D.fromJson(Map<String, Object?> json) => Size2D(
+    (json['width'] as num).toDouble(),
+    (json['height'] as num).toDouble(),
+  );
 }

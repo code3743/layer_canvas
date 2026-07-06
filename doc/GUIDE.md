@@ -477,6 +477,62 @@ await Renderer().renderToFile(scene, '/tmp/output.bmp', format: OutputFormat.bmp
 There's no JPEG: this package's native engine can *decode* JPEG (for
 `ImageLayer` sources) but its vendored Blend2D build can't *encode* one.
 
+### Serialization
+
+`Scene` and every model type it's built from — `Layer` subtypes,
+`LayerPaint`, `Gradient`, `LayerPath`, `LayerImageSource`, etc. — have a
+`toJson()` and a matching `fromJson`-style constructor, so a `Scene` can be
+saved/sent/reloaded without re-building it in code:
+
+```dart
+import 'dart:convert';
+
+final jsonText = jsonEncode(scene.toJson());
+// ...persist jsonText, send it over the network, etc.
+
+final restored = Scene.fromJson(jsonDecode(jsonText) as Map<String, Object?>);
+final png = await Renderer().render(restored);
+```
+
+A `MemoryImageSource`'s bytes are embedded as base64, so a serialized
+`Scene` referencing one is fully self-contained; a `FileImageSource` only
+carries its path, decoded again at render time.
+
+Reconstructing a `Layer`/`LayerImageSource` from JSON is polymorphic — the
+`'type'` field in each `toJson()` output picks which concrete class to
+build — resolved through `LayerRegistry`, which already knows the 5
+built-in layer kinds and 2 built-in image sources. A custom `Layer` (or
+`LayerImageSource`) subclass needs its own `toJson()` override plus a
+decoder registered once, and it round-trips like any built-in type
+(including nested inside a `Group`, or as an `ImageLayer`'s source):
+
+```dart
+class BadgeLayer extends Layer {
+  final String label;
+  BadgeLayer({required this.label, super.id});
+
+  @override
+  String get type => 'badge';
+
+  @override
+  Map<String, Object?> get properties => {'label': label};
+
+  @override
+  Map<String, Object?> toJson() => {
+    ...commonJson(),
+    'properties': {'label': label},
+  };
+
+  factory BadgeLayer.fromJson(Map<String, Object?> json) {
+    final common = parseCommonLayerJson(json);
+    final properties = json['properties'] as Map<String, Object?>;
+    return BadgeLayer(label: properties['label'] as String, id: common.id);
+  }
+}
+
+LayerRegistry.registerLayer('badge', BadgeLayer.fromJson);
+```
+
 ## API overview
 
 ### `Scene`
@@ -575,6 +631,19 @@ rendered afterward, by any `Renderer`. `register` throws a
 methods default `weight` to `TextWeight.normal`; registering several
 weights under the same name lets a `TextLayer` pick whichever is closest to
 its own `fontWeight` (see [Custom fonts](#custom-fonts)).
+
+### `LayerRegistry`
+
+```dart
+LayerRegistry.registerLayer('badge', BadgeLayer.fromJson);
+LayerRegistry.registerImageSource('asset', AssetImageSource.fromJson);
+```
+
+Global to the process. Resolves the `'type'` tag `Layer.toJson`/
+`LayerImageSource.toJson` write into whichever decoder can reconstruct that
+concrete type — see [Serialization](#serialization) above. The 5 built-in
+layer kinds and 2 built-in image sources are registered by default;
+`Scene.fromJson` throws `ArgumentError` on an unregistered `'type'`.
 
 ### `SvgDocument`
 

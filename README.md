@@ -89,6 +89,8 @@ groups) in the [full guide](https://github.com/code3743/layer_canvas/blob/main/d
 - **Stroke styling** — cap (butt/round/square), join (miter/round/bevel),
   miter limit, and dash patterns on `PathLayer`
 - **Multiple output formats** — PNG (default), BMP, or QOI
+- **JSON serialization** — `Scene`/`Layer`/etc. all have `toJson`/`fromJson`,
+  including custom layer types via `LayerRegistry`
 - **Native text rendering** — `TextLayer` ships with an embedded Roboto
   (regular/bold, multiple weights), and apps can register their own fonts
   via `FontRegistry`
@@ -121,7 +123,7 @@ Add to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  layer_canvas: ^0.1.0-beta.5
+  layer_canvas: ^0.1.0-beta.6
 ```
 
 No additional native build setup is required — the Blend2D library is compiled

@@ -22,6 +22,40 @@ enum FillRule {
 /// own geometry — not fractional like [Gradient]'s.
 sealed class PathCommand {
   const PathCommand();
+
+  /// Converts to a JSON-safe map, see `Scene.toJson`. Each concrete
+  /// subclass includes a `'type'` discriminator ([PathCommand.fromJson]
+  /// below dispatches on it).
+  Map<String, Object?> toJson();
+
+  /// Reconstructs a [MoveTo]/[LineTo]/[QuadraticBezierTo]/[CubicBezierTo]/
+  /// [ArcTo]/[ClosePath] from [toJson]'s output, dispatching on its
+  /// `'type'` tag.
+  factory PathCommand.fromJson(Map<String, Object?> json) {
+    return switch (json['type'] as String) {
+      'moveTo' => MoveTo(Point2D.fromJson(json['point'] as Map<String, Object?>)),
+      'lineTo' => LineTo(Point2D.fromJson(json['point'] as Map<String, Object?>)),
+      'quadraticBezierTo' => QuadraticBezierTo(
+        Point2D.fromJson(json['control'] as Map<String, Object?>),
+        Point2D.fromJson(json['point'] as Map<String, Object?>),
+      ),
+      'cubicBezierTo' => CubicBezierTo(
+        Point2D.fromJson(json['control1'] as Map<String, Object?>),
+        Point2D.fromJson(json['control2'] as Map<String, Object?>),
+        Point2D.fromJson(json['point'] as Map<String, Object?>),
+      ),
+      'arcTo' => ArcTo(
+        radiusX: (json['radiusX'] as num).toDouble(),
+        radiusY: (json['radiusY'] as num).toDouble(),
+        xAxisRotation: (json['xAxisRotation'] as num).toDouble(),
+        largeArc: json['largeArc'] as bool,
+        sweep: json['sweep'] as bool,
+        point: Point2D.fromJson(json['point'] as Map<String, Object?>),
+      ),
+      'closePath' => const ClosePath(),
+      final other => throw ArgumentError('Unknown path command type "$other"'),
+    };
+  }
 }
 
 /// Starts a new subpath at [point] without drawing anything.
@@ -40,6 +74,9 @@ class MoveTo extends PathCommand {
 
   @override
   String toString() => 'MoveTo($point)';
+
+  @override
+  Map<String, Object?> toJson() => {'type': 'moveTo', 'point': point.toJson()};
 }
 
 /// Draws a straight line from the current point to [point].
@@ -58,6 +95,9 @@ class LineTo extends PathCommand {
 
   @override
   String toString() => 'LineTo($point)';
+
+  @override
+  Map<String, Object?> toJson() => {'type': 'lineTo', 'point': point.toJson()};
 }
 
 /// Draws a quadratic Bézier curve from the current point to [point], using
@@ -83,6 +123,13 @@ class QuadraticBezierTo extends PathCommand {
 
   @override
   String toString() => 'QuadraticBezierTo($control, $point)';
+
+  @override
+  Map<String, Object?> toJson() => {
+    'type': 'quadraticBezierTo',
+    'control': control.toJson(),
+    'point': point.toJson(),
+  };
 }
 
 /// Draws a cubic Bézier curve from the current point to [point], using
@@ -112,6 +159,14 @@ class CubicBezierTo extends PathCommand {
 
   @override
   String toString() => 'CubicBezierTo($control1, $control2, $point)';
+
+  @override
+  Map<String, Object?> toJson() => {
+    'type': 'cubicBezierTo',
+    'control1': control1.toJson(),
+    'control2': control2.toJson(),
+    'point': point.toJson(),
+  };
 }
 
 /// Draws an elliptical arc from the current point to [point].
@@ -170,6 +225,17 @@ class ArcTo extends PathCommand {
       'ArcTo(radiusX: $radiusX, radiusY: $radiusY, '
       'xAxisRotation: $xAxisRotation, largeArc: $largeArc, sweep: $sweep, '
       'point: $point)';
+
+  @override
+  Map<String, Object?> toJson() => {
+    'type': 'arcTo',
+    'radiusX': radiusX,
+    'radiusY': radiusY,
+    'xAxisRotation': xAxisRotation,
+    'largeArc': largeArc,
+    'sweep': sweep,
+    'point': point.toJson(),
+  };
 }
 
 /// Closes the current subpath with a straight line back to its starting
@@ -186,6 +252,9 @@ class ClosePath extends PathCommand {
 
   @override
   String toString() => 'ClosePath()';
+
+  @override
+  Map<String, Object?> toJson() => {'type': 'closePath'};
 }
 
 /// An ordered sequence of [PathCommand]s describing arbitrary vector
@@ -273,4 +342,15 @@ class LayerPath {
 
   @override
   String toString() => 'LayerPath($commands)';
+
+  /// Converts to a JSON-safe map, see `Scene.toJson`.
+  Map<String, Object?> toJson() => {
+    'commands': [for (final command in commands) command.toJson()],
+  };
+
+  /// Reconstructs a [LayerPath] from [toJson]'s output.
+  factory LayerPath.fromJson(Map<String, Object?> json) => LayerPath([
+    for (final command in json['commands'] as List<Object?>)
+      PathCommand.fromJson(command as Map<String, Object?>),
+  ]);
 }

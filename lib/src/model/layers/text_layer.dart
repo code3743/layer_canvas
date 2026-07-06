@@ -14,6 +14,11 @@ class TextWeight {
 
   const TextWeight._(this.value);
 
+  /// Creates a weight directly from its raw 100–900 value — mainly for
+  /// [fromJson]; prefer one of the named constants above when the weight is
+  /// a compile-time constant.
+  factory TextWeight.fromValue(int value) => TextWeight._(value);
+
   /// Weight 100.
   static const thin = TextWeight._(100);
 
@@ -37,6 +42,9 @@ class TextWeight {
 
   @override
   String toString() => 'TextWeight($value)';
+
+  /// Converts to its raw [value] — see `Scene.toJson`.
+  int toJson() => value;
 }
 
 /// A run of styled text rendered as a layer.
@@ -93,4 +101,37 @@ class TextLayer extends Layer {
     'align': align.name,
     'fontWeight': fontWeight.value,
   };
+
+  @override
+  Map<String, Object?> toJson() => {
+    ...commonJson(),
+    'properties': {
+      'text': text,
+      'fontFamily': fontFamily,
+      'fontSize': fontSize,
+      'color': color.toJson(),
+      'align': align.name,
+      'fontWeight': fontWeight.toJson(),
+    },
+  };
+
+  /// Reconstructs a [TextLayer] from [toJson]'s output.
+  factory TextLayer.fromJson(Map<String, Object?> json) {
+    final common = parseCommonLayerJson(json);
+    final properties = json['properties'] as Map<String, Object?>;
+    return TextLayer(
+      id: common.id,
+      transform: common.transform,
+      size: common.size,
+      opacity: common.opacity,
+      zIndex: common.zIndex,
+      visible: common.visible,
+      text: properties['text'] as String,
+      fontFamily: properties['fontFamily'] as String?,
+      fontSize: (properties['fontSize'] as num).toDouble(),
+      color: Color32.fromJson(properties['color'] as int),
+      align: TextAlignment.values.byName(properties['align'] as String),
+      fontWeight: TextWeight.fromValue(properties['fontWeight'] as int),
+    );
+  }
 }
