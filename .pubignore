@@ -20,3 +20,16 @@ third_party/blend2d/configure_sanitizers.sh
 third_party/blend2d/configure_vs2022_x64.bat
 third_party/blend2d/configure_vs2022_x86.bat
 third_party/blend2d/blend2d/**/*_test.cpp
+
+# Local build artifacts. Already covered by .gitignore, but `dart pub
+# publish` doesn't always honor that anchored pattern the same way `git`
+# does, so it's repeated here explicitly to keep it out of the published
+# archive regardless.
+/build/
+
+# README/GUIDE images are linked as absolute raw.githubusercontent.com
+# URLs (pub.dev doesn't reliably rewrite relative image paths), so the
+# published package doesn't need to carry these binary files itself.
+/architecture.png
+/doc/hero.png
+/doc/watermark_demo.png
