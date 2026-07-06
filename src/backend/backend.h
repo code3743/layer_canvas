@@ -32,11 +32,12 @@ typedef struct {
   int32_t (*render_layers)(LcBackendImage* image, const LcLayerDesc* layers,
                             int32_t layer_count);
 
-  // Encodes the canvas as PNG into a freshly malloc'd buffer. Returns 0 on
-  // success, non-zero on failure. Ownership of `*out_data` transfers to the
-  // caller, who must release it with `free()`.
-  int32_t (*encode_png)(LcBackendImage* image, uint8_t** out_data,
-                         size_t* out_len);
+  // Encodes the canvas as `format` (LcOutputFormat) into a freshly malloc'd
+  // buffer. Returns 0 on success, non-zero on failure (including an
+  // unsupported/unencodable format). Ownership of `*out_data` transfers to
+  // the caller, who must release it with `free()`.
+  int32_t (*encode_image)(LcBackendImage* image, int32_t format,
+                           uint8_t** out_data, size_t* out_len);
 
   // Registers `size` bytes of font data (TTF/OTF) under `name`+`weight`
   // (100..900, CSS/OpenType scale) so any TextLayer whose fontFamily

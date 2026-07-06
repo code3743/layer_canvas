@@ -12,7 +12,30 @@ import '../model/scene.dart';
 import '../model/transform.dart';
 import 'scene_flattener.dart';
 
-/// Renders a [Scene] to PNG bytes using the native Blend2D compositing engine.
+/// An encoded image format a [Renderer] can produce.
+///
+/// JPEG is deliberately not offered: the native engine's Blend2D backend
+/// only implements JPEG *decoding* (used by [ImageLayer] sources), not
+/// encoding — its JPEG encoder is an upstream stub that always fails
+/// (`BL_ERROR_IMAGE_ENCODER_NOT_PROVIDED`).
+enum OutputFormat {
+  /// Lossless, widely supported, the default. Larger files than [qoi] for
+  /// most rendered UI content (flat colors, text, gradients).
+  png,
+
+  /// Uncompressed. Larger files than [png]/[qoi]; mainly useful when
+  /// encoding speed matters more than size, or a consumer specifically
+  /// needs a BMP.
+  bmp,
+
+  /// Lossless, simpler and typically faster to encode/decode than PNG, at
+  /// the cost of being a far less widely supported format outside
+  /// image-processing tooling.
+  qoi,
+}
+
+/// Renders a [Scene] to encoded image bytes using the native Blend2D
+/// compositing engine.
 ///
 /// ```dart
 /// final scene = Scene(width: 800, height: 600)
@@ -30,18 +53,28 @@ class Renderer {
   /// construct fresh per render.
   const Renderer();
 
-  /// Renders [scene] and returns the encoded PNG bytes.
+  /// Renders [scene] and returns the encoded bytes, as [format] (defaults to
+  /// PNG).
   ///
   /// Throws a [RenderException] if the native engine returns a non-zero status.
-  Future<Uint8List> render(Scene scene) async => _renderSync(scene);
+  Future<Uint8List> render(
+    Scene scene, {
+    OutputFormat format = OutputFormat.png,
+  }) async => _renderSync(scene, format);
 
-  /// Renders [scene] and writes the encoded bytes to [outputPath].
-  Future<void> renderToFile(Scene scene, String outputPath) async {
-    final bytes = await render(scene);
+  /// Renders [scene] and writes the encoded bytes to [outputPath], as
+  /// [format] (defaults to PNG). [outputPath]'s extension is not inspected —
+  /// pass a matching one yourself if that matters to you.
+  Future<void> renderToFile(
+    Scene scene,
+    String outputPath, {
+    OutputFormat format = OutputFormat.png,
+  }) async {
+    final bytes = await render(scene, format: format);
     await File(outputPath).writeAsBytes(bytes);
   }
 
-  Uint8List _renderSync(Scene scene) {
+  Uint8List _renderSync(Scene scene, OutputFormat format) {
     final background = scene.background;
     final renderable = <ResolvedLayer>[
       // Painted first (bottom of the stack), covering the whole canvas,
@@ -89,6 +122,7 @@ class Renderer {
           scene.height,
           nativeCount == 0 ? nullptr : nativeLayers,
           nativeCount,
+          format.index,
           outData,
           outLen,
         );
