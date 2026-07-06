@@ -30,6 +30,7 @@ class ImageLayer extends Layer {
     super.opacity,
     super.zIndex,
     super.visible,
+    super.clipToBounds,
   });
 
   @override
@@ -61,6 +62,7 @@ class ImageLayer extends Layer {
       opacity: common.opacity,
       zIndex: common.zIndex,
       visible: common.visible,
+      clipToBounds: common.clipToBounds,
       source: decodeSource(properties['source'] as Map<String, Object?>),
       fit: ImageFit.values.byName(properties['fit'] as String),
     );

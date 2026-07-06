@@ -216,6 +216,7 @@ void main() {
         opacity: 0.8,
         zIndex: 2,
         visible: false,
+        clipToBounds: true,
         paint: const LayerPaint(color: Color32.fromRGB(200, 0, 0)),
         cornerRadius: 8,
       );
@@ -230,6 +231,7 @@ void main() {
       expect(decoded.opacity, layer.opacity);
       expect(decoded.zIndex, layer.zIndex);
       expect(decoded.visible, layer.visible);
+      expect(decoded.clipToBounds, isTrue);
       expect(decoded.paint.color, layer.paint.color);
       expect(decoded.cornerRadius, layer.cornerRadius);
     });

@@ -52,6 +52,7 @@ class PathLayer extends Layer {
     super.opacity,
     super.zIndex,
     super.visible,
+    super.clipToBounds,
   });
 
   /// A solid-filled [path] — [color] directly, without building
@@ -71,6 +72,7 @@ class PathLayer extends Layer {
     double opacity = 1.0,
     int zIndex = 0,
     bool visible = true,
+    bool clipToBounds = false,
   }) {
     return PathLayer(
       path: path,
@@ -82,6 +84,7 @@ class PathLayer extends Layer {
       opacity: opacity,
       zIndex: zIndex,
       visible: visible,
+      clipToBounds: clipToBounds,
     );
   }
 
@@ -116,6 +119,7 @@ class PathLayer extends Layer {
       opacity: common.opacity,
       zIndex: common.zIndex,
       visible: common.visible,
+      clipToBounds: common.clipToBounds,
       path: LayerPath.fromJson(properties['path'] as Map<String, Object?>),
       paint: LayerPaint.fromJson(properties['paint'] as Map<String, Object?>),
       fillRule: FillRule.values.byName(properties['fillRule'] as String),

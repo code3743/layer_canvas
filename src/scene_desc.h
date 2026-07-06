@@ -180,6 +180,9 @@ typedef struct {
   double anchor_x;  // fractional, 0..1 of width/height
   double anchor_y;
   double opacity;  // 0..1
+  int32_t clip_to_bounds;  // 0/1 - mirrors Layer.clipToBounds. Clips this
+                           // layer's own painted content to 0,0..width,height
+                           // in its own local (post-transform) space.
 
   int32_t kind;  // LcLayerKind. Backends must ignore kinds they don't
                  // recognize instead of failing the whole render.

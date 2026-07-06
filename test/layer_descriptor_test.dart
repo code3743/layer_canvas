@@ -617,6 +617,42 @@ void main() {
       },
     );
   });
+
+  group('fillNativeLayerDesc (clipToBounds)', () {
+    late Pointer<bindings.LcLayerDesc> descPtr;
+    late bindings.LcLayerDesc desc;
+
+    setUp(() {
+      descPtr = calloc<bindings.LcLayerDesc>();
+      desc = descPtr.ref;
+    });
+
+    tearDown(() => calloc.free(descPtr));
+
+    test('defaults to disabled', () {
+      fillNativeLayerDesc(
+        desc,
+        RectangleLayer(size: const Size2D(1, 1)),
+        transform: const LayerTransform(),
+        opacity: 1.0,
+        ownedBuffers: [],
+      );
+
+      expect(desc.clip_to_bounds, 0);
+    });
+
+    test('marshals true as 1', () {
+      fillNativeLayerDesc(
+        desc,
+        RectangleLayer(size: const Size2D(1, 1), clipToBounds: true),
+        transform: const LayerTransform(),
+        opacity: 1.0,
+        ownedBuffers: [],
+      );
+
+      expect(desc.clip_to_bounds, 1);
+    });
+  });
 }
 
 List<int> _readText(bindings.LcLayerDesc desc) => [

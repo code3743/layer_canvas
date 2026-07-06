@@ -87,6 +87,7 @@ class TextLayer extends Layer {
     super.opacity,
     super.zIndex,
     super.visible,
+    super.clipToBounds,
   });
 
   @override
@@ -126,6 +127,7 @@ class TextLayer extends Layer {
       opacity: common.opacity,
       zIndex: common.zIndex,
       visible: common.visible,
+      clipToBounds: common.clipToBounds,
       text: properties['text'] as String,
       fontFamily: properties['fontFamily'] as String?,
       fontSize: (properties['fontSize'] as num).toDouble(),

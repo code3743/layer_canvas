@@ -381,6 +381,12 @@ final class LcLayerDesc extends ffi.Struct {
   @ffi.Double()
   external double opacity;
 
+  /// 0/1 - mirrors Layer.clipToBounds. Clips this
+  /// layer's own painted content to 0,0..width,height
+  /// in its own local (post-transform) space.
+  @ffi.Int32()
+  external int clip_to_bounds;
+
   /// LcLayerKind. Backends must ignore kinds they don't
   /// recognize instead of failing the whole render.
   @ffi.Int32()
