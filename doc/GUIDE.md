@@ -16,6 +16,7 @@ how to build/test the package.
   - [Custom fonts](#custom-fonts)
   - [Opting out of the embedded default font](#opting-out-of-the-embedded-default-font)
   - [Groups](#groups)
+  - [Hit testing](#hit-testing)
   - [SVG import](#svg-import)
   - [Write to file](#write-to-file)
 - [API overview](#api-overview)
@@ -344,6 +345,25 @@ move, rotate, or fade the whole cluster without touching each child's own
 values. Groups can nest arbitrarily and never reach the native engine: the
 renderer flattens them into concrete layers first.
 
+### Hit testing
+
+```dart
+final tapped = hitTestScene(scene, const Point2D(120, 340));
+if (tapped != null) {
+  print('tapped ${tapped.id} (${tapped.type})');
+}
+```
+
+Returns the topmost visible layer whose bounding box contains the point,
+respecting the same `zIndex`/insertion-order stacking rule `Scene.layers`
+documents, and the same `Group` transform composition `Renderer` uses to
+paint — a layer nested in a rotated/scaled group is hit-tested in that
+group's space, not the scene's raw coordinates. It's a bounding-box test
+against `Layer.size` (not the exact painted shape — a circular `PathLayer`
+hit-tests as its bounding square), and a layer with no explicit `size`
+(intrinsic sizing) never matches, since its true rendered bounds are only
+known to the native backend.
+
 ### SVG import
 
 `SvgDocument` parses SVG source into this package's existing layer types
@@ -472,6 +492,16 @@ await renderer.renderToFile(scene, outputPath);
 
 Throws `RenderException` (a subtype of `Exception`) if the native engine
 returns a non-zero status code.
+
+### `hitTestScene`
+
+```dart
+Layer? hitTestScene(Scene scene, Point2D point)
+```
+
+Returns the topmost visible `Layer` (by the same stacking rule
+`Scene.layers`/`Renderer` use) whose bounding box contains `point`, or
+`null`. See [Hit testing](#hit-testing) above.
 
 ### `FontRegistry`
 

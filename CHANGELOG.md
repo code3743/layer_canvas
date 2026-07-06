@@ -1,3 +1,16 @@
+## 0.1.0-beta.4
+
+* **`hitTestScene`** — given a `Scene` and a point (in its own logical
+  pixel space), returns the topmost visible `Layer` whose bounding box
+  contains it, or `null`. Built on the same `Group`/transform composition
+  `flattenScene` already resolves internally for rendering, so a rotated,
+  scaled, or nested-in-a-group layer's hit box moves exactly the way its
+  paint geometry does. A bounding-box test against `Layer.size` (not the
+  exact painted shape), and a layer with no explicit `size` (intrinsic
+  sizing) never matches — see the doc comment for the precise contract.
+  This is what lets a consumer (e.g. `layer_canvas_flutter`) offer tap
+  handling without reimplementing this package's own transform math.
+
 ## 0.1.0-beta.3
 
 New layer capabilities and SVG import.
