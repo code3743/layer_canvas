@@ -1,3 +1,20 @@
+## 1.0.0
+
+First stable release.
+
+* **`Layer.clipToBounds`** — clips a layer's own painted content to its own
+  `size` box, in its own local (post-transform) space, so the clip moves
+  and rotates with the layer exactly like its paint geometry. Requires an
+  explicit `size`; no effect on `Group`, which is expanded into its
+  concrete descendants before reaching the native renderer, leaving no
+  single composited surface to clip.
+* **`TextLayer` word-wrap** — text always breaks on an explicit `\n`, and
+  additionally word-wraps to fit `size`'s width when one is given, greedily
+  and only at spaces (a single word wider than the box overflows on its
+  own line rather than being split mid-word). The wrapped block is
+  vertically centered within `size`'s height, same as a single line always
+  was.
+
 ## 0.1.0-beta.6
 
 * **JSON serialization** — every model type (`Scene`, all `Layer` subtypes,

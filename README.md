@@ -93,7 +93,10 @@ groups) in the [full guide](https://github.com/code3743/layer_canvas/blob/main/d
   including custom layer types via `LayerRegistry`
 - **Native text rendering** — `TextLayer` ships with an embedded Roboto
   (regular/bold, multiple weights), and apps can register their own fonts
-  via `FontRegistry`
+  via `FontRegistry`; text automatically word-wraps to fit `size.width` and
+  always breaks on explicit `\n`
+- **Clipping** — `Layer.clipToBounds` clips a layer's own painted content
+  to its own size box, moving/rotating with it
 - **Pure Dart core** — no dependency on Flutter or `dart:ui`; the same
   `Scene`/`Renderer` API runs in a plain `dart run` script, a server, or a
   Flutter app
@@ -123,7 +126,7 @@ Add to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  layer_canvas: ^0.1.0-beta.6
+  layer_canvas: ^1.0.0
 ```
 
 No additional native build setup is required — the Blend2D library is compiled

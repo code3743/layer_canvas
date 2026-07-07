@@ -312,8 +312,27 @@ final png = await Renderer().render(scene);
 
 `TextLayer` renders natively (no Flutter widgets involved) using an embedded
 Roboto — `fontWeight` values `>= 600` pick the bold face, everything else
-regular. Alignment is honored within `size`'s width; without an explicit
-`size`, text is drawn from `transform.position` with no wrapping.
+regular. Alignment is honored within `size`'s width.
+
+`text` always breaks on an explicit `\n`, and additionally word-wraps to
+fit `size`'s width when one is given — greedily, breaking only at spaces
+(a single word wider than the box overflows on its own line rather than
+being split mid-word):
+
+```dart
+scene.add(TextLayer(
+  transform: const LayerTransform(position: Point2D(16, 16)),
+  size: const Size2D(200, 120),
+  text: 'A long caption that wraps automatically across several lines.',
+  fontSize: 16,
+  color: Color32.white,
+  align: TextAlignment.center,
+));
+```
+
+The whole wrapped block is vertically centered within `size`'s height, same
+as a single line already was. With no `size` (intrinsic sizing), each `\n`-
+separated paragraph stays a single, potentially overflowing, line.
 
 ### Custom fonts
 
@@ -388,6 +407,31 @@ A `Group`'s `transform` and `opacity` apply to every child as one unit —
 move, rotate, or fade the whole cluster without touching each child's own
 values. Groups can nest arbitrarily and never reach the native engine: the
 renderer flattens them into concrete layers first.
+
+### Clipping
+
+Any layer can clip its own painted content to its own `size` box:
+
+```dart
+scene.add(PathLayer(
+  transform: const LayerTransform(position: Point2D(50, 50)),
+  size: const Size2D(80, 80),
+  path: LayerPath.circle(const Point2D(40, 40), 60), // bigger than the box
+  paint: const LayerPaint(color: Color32.fromRGB(0, 180, 90)),
+  clipToBounds: true, // clipped to the 80x80 box instead of overflowing
+));
+```
+
+The clip is applied in the layer's own local space, after its own
+position/rotation/scale — it moves and rotates with the layer exactly like
+its paint geometry does, so it stays correct at any angle. It requires an
+explicit `size`; without one there's nothing well-defined to clip to, and
+the layer ends up fully clipped away.
+
+`clipToBounds` has no effect on a `Group`: a group is expanded into its
+concrete descendants before reaching the native renderer (see
+[Groups](#groups) above), so there's no single composited surface left for
+the group itself to clip.
 
 ### Hit testing
 
@@ -561,6 +605,7 @@ Every element on a scene inherits these properties:
 | `opacity` | `double` | `1.0` | Compositing alpha, `0.0`–`1.0`. |
 | `zIndex` | `int` | `0` | Stacking order (higher = on top). |
 | `visible` | `bool` | `true` | Invisible layers are not sent to the native engine. |
+| `clipToBounds` | `bool` | `false` | Clips this layer's own content to its `size` box (see [Clipping](#clipping)). No effect on `Group`. |
 
 ### `LayerTransform`
 
