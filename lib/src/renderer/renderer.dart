@@ -46,8 +46,15 @@ enum OutputFormat {
 /// final bytes = await Renderer().render(scene);
 /// ```
 ///
-/// `render` is `async` so future versions can move the native call off the
-/// UI isolate without a breaking API change.
+/// `render` runs the native call synchronously under the hood — `async`
+/// only so the return type is a `Future`, not because the work is offloaded
+/// anywhere. This package is plain Dart and has no opinion on whether its
+/// caller has a UI thread to protect, so it doesn't pay isolate-spawn
+/// overhead on every call for a benefit only some callers need. A Flutter
+/// app that wants `render` to run off its UI isolate should reach for
+/// `layer_canvas_flutter`'s `LayerCanvas` (or its other widgets/helpers,
+/// all of which offload internally) instead of calling this directly from
+/// UI code.
 class Renderer {
   /// Creates a renderer. Stateless — safe to construct once and reuse, or
   /// construct fresh per render.
@@ -56,7 +63,8 @@ class Renderer {
   /// Renders [scene] and returns the encoded bytes, as [format] (defaults to
   /// PNG).
   ///
-  /// Throws a [RenderException] if the native engine returns a non-zero status.
+  /// Throws a [RenderException] if the native engine returns a non-zero
+  /// status.
   Future<Uint8List> render(
     Scene scene, {
     OutputFormat format = OutputFormat.png,
@@ -73,78 +81,80 @@ class Renderer {
     final bytes = await render(scene, format: format);
     await File(outputPath).writeAsBytes(bytes);
   }
+}
 
-  Uint8List _renderSync(Scene scene, OutputFormat format) {
-    final background = scene.background;
-    final renderable = <ResolvedLayer>[
-      // Painted first (bottom of the stack), covering the whole canvas,
-      // regardless of any layer's zIndex - matches Scene.background's doc
-      // comment ("painted before any layer").
-      if (background != null)
-        ResolvedLayer(
-          ImageLayer(
-            source: background,
-            size: Size2D(scene.width.toDouble(), scene.height.toDouble()),
-            fit: ImageFit.cover,
-          ),
-          const LayerTransform(),
-          1.0,
+/// The actual native render call — a plain top-level function since it
+/// doesn't touch any [Renderer] instance state (there is none).
+Uint8List _renderSync(Scene scene, OutputFormat format) {
+  final background = scene.background;
+  final renderable = <ResolvedLayer>[
+    // Painted first (bottom of the stack), covering the whole canvas,
+    // regardless of any layer's zIndex - matches Scene.background's doc
+    // comment ("painted before any layer").
+    if (background != null)
+      ResolvedLayer(
+        ImageLayer(
+          source: background,
+          size: Size2D(scene.width.toDouble(), scene.height.toDouble()),
+          fit: ImageFit.cover,
         ),
-      ...flattenScene(scene.layers),
-    ];
+        const LayerTransform(),
+        1.0,
+      ),
+    ...flattenScene(scene.layers),
+  ];
 
-    final nativeLayers = calloc<bindings.LcLayerDesc>(renderable.length);
-    // Native buffers allocated for ImageLayer bytes and gradient stops (see
-    // fillNativeLayerDesc) — these live only for the duration of the
-    // lc_render_scene call below, unlike text/font_family which are copied
-    // inline into the struct itself.
-    final ownedBuffers = <Pointer>[];
-    try {
-      var nativeCount = 0;
-      for (final resolved in renderable) {
-        final slot = (nativeLayers + nativeCount).ref;
-        if (fillNativeLayerDesc(
-          slot,
-          resolved.source,
-          transform: resolved.transform,
-          opacity: resolved.opacity,
-          ownedBuffers: ownedBuffers,
-        )) {
-          nativeCount++;
-        }
+  final nativeLayers = calloc<bindings.LcLayerDesc>(renderable.length);
+  // Native buffers allocated for ImageLayer bytes and gradient stops (see
+  // fillNativeLayerDesc) — these live only for the duration of the
+  // lc_render_scene call below, unlike text/font_family which are copied
+  // inline into the struct itself.
+  final ownedBuffers = <Pointer>[];
+  try {
+    var nativeCount = 0;
+    for (final resolved in renderable) {
+      final slot = (nativeLayers + nativeCount).ref;
+      if (fillNativeLayerDesc(
+        slot,
+        resolved.source,
+        transform: resolved.transform,
+        opacity: resolved.opacity,
+        ownedBuffers: ownedBuffers,
+      )) {
+        nativeCount++;
       }
-
-      final outData = calloc<Pointer<Uint8>>();
-      final outLen = calloc<Size>();
-      try {
-        final status = bindings.lc_render_scene(
-          scene.width,
-          scene.height,
-          nativeCount == 0 ? nullptr : nativeLayers,
-          nativeCount,
-          format.index,
-          outData,
-          outLen,
-        );
-        if (status != 0) {
-          throw RenderException('Native render failed with status $status');
-        }
-
-        final bytes = Uint8List.fromList(
-          outData.value.asTypedList(outLen.value),
-        );
-        bindings.lc_buffer_free(outData.value);
-        return bytes;
-      } finally {
-        calloc.free(outData);
-        calloc.free(outLen);
-      }
-    } finally {
-      for (final buffer in ownedBuffers) {
-        calloc.free(buffer);
-      }
-      calloc.free(nativeLayers);
     }
+
+    final outData = calloc<Pointer<Uint8>>();
+    final outLen = calloc<Size>();
+    try {
+      final status = bindings.lc_render_scene(
+        scene.width,
+        scene.height,
+        nativeCount == 0 ? nullptr : nativeLayers,
+        nativeCount,
+        format.index,
+        outData,
+        outLen,
+      );
+      if (status != 0) {
+        throw RenderException('Native render failed with status $status');
+      }
+
+      final bytes = Uint8List.fromList(
+        outData.value.asTypedList(outLen.value),
+      );
+      bindings.lc_buffer_free(outData.value);
+      return bytes;
+    } finally {
+      calloc.free(outData);
+      calloc.free(outLen);
+    }
+  } finally {
+    for (final buffer in ownedBuffers) {
+      calloc.free(buffer);
+    }
+    calloc.free(nativeLayers);
   }
 }
 
