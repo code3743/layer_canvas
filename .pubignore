@@ -20,6 +20,26 @@ third_party/blend2d/configure_sanitizers.sh
 third_party/blend2d/configure_vs2022_x64.bat
 third_party/blend2d/configure_vs2022_x86.bat
 third_party/blend2d/blend2d/**/*_test.cpp
+# Same idea, but for Blend2D's SIMD compiler-support probes, whose filenames
+# don't end in `_test.cpp` (e.g. `simdx86_test_avx.cpp` ends in `_avx.cpp`),
+# so the glob above misses them. hook/build.dart selects SIMD variants by
+# their own curated file list (see its top comment), never by compiling or
+# including these — confirmed via grep, nothing under src/ or hook/
+# references them.
+third_party/blend2d/blend2d/simd/*_test_*.cpp
+third_party/blend2d/blend2d/simd/simd_test_p.h
+# Visual Studio debugger visualization file — irrelevant outside the VS IDE,
+# and no build step touches it.
+third_party/blend2d/blend2d/blend2d.natvis
+
+# Source TTFs for tool/generate_embedded_fonts.dart, which bakes them into
+# src/backend/blend2d/fonts/embedded_fonts.h (base64, checked in) — that
+# generated header is the only one hook/build.dart's compile actually reads;
+# these raw fonts are maintainer-only regeneration input, never built from.
+# LICENSE.txt stays for attribution, since the font bytes themselves are
+# still redistributed (embedded in the generated header).
+third_party/fonts/roboto/Roboto-Bold.ttf
+third_party/fonts/roboto/Roboto-Regular.ttf
 
 # Local build artifacts. Already covered by .gitignore, but `dart pub
 # publish` doesn't always honor that anchored pattern the same way `git`
