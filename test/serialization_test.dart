@@ -48,10 +48,7 @@ void main() {
       const gradient = LinearGradient(
         start: Point2D(0, 0),
         end: Point2D(1, 1),
-        stops: [
-          GradientStop(0, Color32.black),
-          GradientStop(1, Color32.white),
-        ],
+        stops: [GradientStop(0, Color32.black), GradientStop(1, Color32.white)],
         extendMode: GradientExtendMode.repeat,
       );
 
@@ -132,7 +129,10 @@ void main() {
         gradient: LinearGradient(
           start: Point2D(0, 0),
           end: Point2D(1, 0),
-          stops: [GradientStop(0, Color32.black), GradientStop(1, Color32.white)],
+          stops: [
+            GradientStop(0, Color32.black),
+            GradientStop(1, Color32.white),
+          ],
         ),
       );
 
@@ -308,9 +308,7 @@ void main() {
         transform: const LayerTransform(position: Point2D(10, 10)),
         children: [
           RectangleLayer(size: const Size2D(50, 50)),
-          Group(
-            children: [TextLayer(text: 'nested')],
-          ),
+          Group(children: [TextLayer(text: 'nested')]),
         ],
       );
 
@@ -346,18 +344,19 @@ void main() {
     });
 
     test('a scene with a background and multiple layers', () {
-      final scene = Scene(
-        width: 400,
-        height: 300,
-        background: const LayerImageSource.file('/tmp/bg.png'),
-      )..addAll([
-        RectangleLayer.filled(
-          width: 400,
-          height: 300,
-          color: Color32.fromRGB(20, 20, 20),
-        ),
-        TextLayer(text: 'watermark', zIndex: 1),
-      ]);
+      final scene =
+          Scene(
+            width: 400,
+            height: 300,
+            background: const LayerImageSource.file('/tmp/bg.png'),
+          )..addAll([
+            RectangleLayer.filled(
+              width: 400,
+              height: 300,
+              color: Color32.fromRGB(20, 20, 20),
+            ),
+            TextLayer(text: 'watermark', zIndex: 1),
+          ]);
 
       final decoded = Scene.fromJson(_throughJsonText(scene.toJson()));
 
@@ -413,9 +412,6 @@ class _BadgeLayer extends Layer {
   factory _BadgeLayer.fromJson(Map<String, Object?> json) {
     final common = parseCommonLayerJson(json);
     final properties = json['properties'] as Map<String, Object?>;
-    return _BadgeLayer(
-      label: properties['label'] as String,
-      id: common.id,
-    );
+    return _BadgeLayer(label: properties['label'] as String, id: common.id);
   }
 }

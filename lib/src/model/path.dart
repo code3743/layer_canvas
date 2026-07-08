@@ -33,8 +33,12 @@ sealed class PathCommand {
   /// `'type'` tag.
   factory PathCommand.fromJson(Map<String, Object?> json) {
     return switch (json['type'] as String) {
-      'moveTo' => MoveTo(Point2D.fromJson(json['point'] as Map<String, Object?>)),
-      'lineTo' => LineTo(Point2D.fromJson(json['point'] as Map<String, Object?>)),
+      'moveTo' => MoveTo(
+        Point2D.fromJson(json['point'] as Map<String, Object?>),
+      ),
+      'lineTo' => LineTo(
+        Point2D.fromJson(json['point'] as Map<String, Object?>),
+      ),
       'quadraticBezierTo' => QuadraticBezierTo(
         Point2D.fromJson(json['control'] as Map<String, Object?>),
         Point2D.fromJson(json['point'] as Map<String, Object?>),

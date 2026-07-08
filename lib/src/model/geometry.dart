@@ -42,10 +42,8 @@ class Point2D {
   Map<String, Object?> toJson() => {'x': x, 'y': y};
 
   /// Reconstructs a [Point2D] from [toJson]'s output.
-  factory Point2D.fromJson(Map<String, Object?> json) => Point2D(
-    (json['x'] as num).toDouble(),
-    (json['y'] as num).toDouble(),
-  );
+  factory Point2D.fromJson(Map<String, Object?> json) =>
+      Point2D((json['x'] as num).toDouble(), (json['y'] as num).toDouble());
 }
 
 /// A 2D size in the [Scene]'s logical pixel space.

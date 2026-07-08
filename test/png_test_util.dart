@@ -25,11 +25,7 @@ class DecodedPng {
     final idat = BytesBuilder();
 
     while (pos < bytes.length) {
-      final length = ByteData.sublistView(
-        bytes,
-        pos,
-        pos + 4,
-      ).getUint32(0);
+      final length = ByteData.sublistView(bytes, pos, pos + 4).getUint32(0);
       final type = String.fromCharCodes(bytes, pos + 4, pos + 8);
       final data = bytes.sublist(pos + 8, pos + 8 + length);
       if (type == 'IHDR') {

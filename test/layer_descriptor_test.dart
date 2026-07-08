@@ -574,48 +574,45 @@ void main() {
       expect(desc.path_paint.stroke_cap, StrokeCap.square.index);
     });
 
-    test(
-      'a dashArray is resolved into plain dashed geometry, never sent to '
-      'the native dash fields (which no longer exist on LcPaintDesc)',
-      () {
-        // LayerPath.circle is a single closed loop long enough that a [4, 4]
-        // dash produces at least one full on/off cycle — if dashing were
-        // (incorrectly) still expected to cross the FFI boundary as data
-        // rather than be pre-resolved into geometry, the plain circle's
-        // path_command_count below would differ.
-        final undashedCount = () {
-          fillNativeLayerDesc(
-            desc,
-            PathLayer(
-              path: LayerPath.circle(const Point2D(50, 50), 50),
-              paint: const LayerPaint(style: LayerPaintStyle.stroke),
-            ),
-            transform: const LayerTransform(),
-            opacity: 1.0,
-            ownedBuffers: ownedBuffers,
-          );
-          return desc.path_command_count;
-        }();
-
+    test('a dashArray is resolved into plain dashed geometry, never sent to '
+        'the native dash fields (which no longer exist on LcPaintDesc)', () {
+      // LayerPath.circle is a single closed loop long enough that a [4, 4]
+      // dash produces at least one full on/off cycle — if dashing were
+      // (incorrectly) still expected to cross the FFI boundary as data
+      // rather than be pre-resolved into geometry, the plain circle's
+      // path_command_count below would differ.
+      final undashedCount = () {
         fillNativeLayerDesc(
           desc,
           PathLayer(
             path: LayerPath.circle(const Point2D(50, 50), 50),
-            paint: const LayerPaint(
-              style: LayerPaintStyle.stroke,
-              dashArray: [4, 4],
-            ),
+            paint: const LayerPaint(style: LayerPaintStyle.stroke),
           ),
           transform: const LayerTransform(),
           opacity: 1.0,
           ownedBuffers: ownedBuffers,
         );
+        return desc.path_command_count;
+      }();
 
-        // Dashing replaces the two-arc circle with many short MoveTo/LineTo
-        // runs, so the command count must grow substantially.
-        expect(desc.path_command_count, greaterThan(undashedCount * 2));
-      },
-    );
+      fillNativeLayerDesc(
+        desc,
+        PathLayer(
+          path: LayerPath.circle(const Point2D(50, 50), 50),
+          paint: const LayerPaint(
+            style: LayerPaintStyle.stroke,
+            dashArray: [4, 4],
+          ),
+        ),
+        transform: const LayerTransform(),
+        opacity: 1.0,
+        ownedBuffers: ownedBuffers,
+      );
+
+      // Dashing replaces the two-arc circle with many short MoveTo/LineTo
+      // runs, so the command count must grow substantially.
+      expect(desc.path_command_count, greaterThan(undashedCount * 2));
+    });
   });
 
   group('fillNativeLayerDesc (clipToBounds)', () {

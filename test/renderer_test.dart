@@ -405,34 +405,31 @@ void main() {
       );
     });
 
-    test(
-      'clipToBounds clips a PathLayer\'s overflowing geometry to its own '
-      'size box',
-      () async {
-        // A circle centered at local (20, 20) with radius 60 overflows far
-        // past a 40x40 declared size box - (70, 20) is inside the circle
-        // (distance 50 < 60) but outside the box (x=70 > 40).
-        Future<DecodedPng> render(bool clipToBounds) async {
-          final scene = Scene(width: 100, height: 100)
-            ..add(
-              PathLayer(
-                transform: const LayerTransform(anchor: Point2D.zero),
-                size: const Size2D(40, 40),
-                path: LayerPath.circle(const Point2D(20, 20), 60),
-                paint: const LayerPaint(color: Color32.white),
-                clipToBounds: clipToBounds,
-              ),
-            );
-          return DecodedPng.decode(await renderer.render(scene));
-        }
+    test('clipToBounds clips a PathLayer\'s overflowing geometry to its own '
+        'size box', () async {
+      // A circle centered at local (20, 20) with radius 60 overflows far
+      // past a 40x40 declared size box - (70, 20) is inside the circle
+      // (distance 50 < 60) but outside the box (x=70 > 40).
+      Future<DecodedPng> render(bool clipToBounds) async {
+        final scene = Scene(width: 100, height: 100)
+          ..add(
+            PathLayer(
+              transform: const LayerTransform(anchor: Point2D.zero),
+              size: const Size2D(40, 40),
+              path: LayerPath.circle(const Point2D(20, 20), 60),
+              paint: const LayerPaint(color: Color32.white),
+              clipToBounds: clipToBounds,
+            ),
+          );
+        return DecodedPng.decode(await renderer.render(scene));
+      }
 
-        final clipped = await render(true);
-        final unclipped = await render(false);
+      final clipped = await render(true);
+      final unclipped = await render(false);
 
-        expect(unclipped.pixel(70, 20), (255, 255, 255, 255));
-        expect(clipped.pixel(70, 20), (0, 0, 0, 0));
-      },
-    );
+      expect(unclipped.pixel(70, 20), (255, 255, 255, 255));
+      expect(clipped.pixel(70, 20), (0, 0, 0, 0));
+    });
 
     test(
       'a long TextLayer wraps into more lines under a narrower size.width',

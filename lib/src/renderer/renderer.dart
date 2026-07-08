@@ -141,9 +141,7 @@ Uint8List _renderSync(Scene scene, OutputFormat format) {
         throw RenderException('Native render failed with status $status');
       }
 
-      final bytes = Uint8List.fromList(
-        outData.value.asTypedList(outLen.value),
-      );
+      final bytes = Uint8List.fromList(outData.value.asTypedList(outLen.value));
       bindings.lc_buffer_free(outData.value);
       return bytes;
     } finally {

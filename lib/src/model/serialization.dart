@@ -32,7 +32,8 @@ class LayerRegistry {
   static final Map<String, LayerFromJson> _layerDecoders = {
     'rectangle': RectangleLayer.fromJson,
     'text': TextLayer.fromJson,
-    'image': (json) => ImageLayer.fromJson(json, decodeSource: decodeImageSource),
+    'image': (json) =>
+        ImageLayer.fromJson(json, decodeSource: decodeImageSource),
     'path': PathLayer.fromJson,
     'group': (json) => Group.fromJson(json, decodeChild: decodeLayer),
   };

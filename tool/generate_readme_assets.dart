@@ -67,7 +67,7 @@ Future<void> main() async {
   );
   scene.add(
     TextLayer(
-      text: 'Native 2D rendering for Dart & Flutter',
+      text: 'Native 2D rendering for Dart',
       transform: const LayerTransform(position: Point2D(64, 210)),
       size: const Size2D(700, 32),
       fontSize: 22,
