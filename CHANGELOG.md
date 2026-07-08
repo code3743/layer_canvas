@@ -1,6 +1,4 @@
-## 1.0.0
-
-First stable release.
+## 0.1.0
 
 * **`Layer.clipToBounds`** — clips a layer's own painted content to its own
   `size` box, in its own local (post-transform) space, so the clip moves

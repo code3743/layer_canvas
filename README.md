@@ -126,7 +126,7 @@ Add to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  layer_canvas: ^1.0.0
+  layer_canvas: ^0.1.0
 ```
 
 No additional native build setup is required — the Blend2D library is compiled
