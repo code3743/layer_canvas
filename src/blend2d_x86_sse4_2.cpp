@@ -1,4 +1,8 @@
-#if defined(__x86_64__) || defined(__i386__)
+// MSVC does not define __x86_64__/__i386__ (it uses _M_X64/_M_IX86), and it
+// does not need per-function target attributes: its intrinsics are usable in
+// any function regardless of the baseline. So the guard accepts both
+// spellings, and the clang-only `#pragma clang attribute` is skipped there.
+#if defined(__x86_64__) || defined(__i386__) || defined(_M_X64) || defined(_M_IX86)
 
 #ifndef BL_TARGET_OPT_SSE4_2
 #define BL_TARGET_OPT_SSE4_2
@@ -8,9 +12,13 @@
 // inline helpers. The attribute must cover pclmul even for files that don't
 // use it directly, otherwise Clang rejects the __builtin_ia32_pclmulqdq128
 // calls emitted by the inline expansion.
+#if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("sse4.2,pclmul"))), apply_to=function)
+#endif // __clang__
 #include "../../third_party/blend2d/blend2d/opentype/otglyf_sse4_2.cpp"
 #include "../../third_party/blend2d/blend2d/compression/checksum_sse4_2.cpp"
+#if defined(__clang__)
 #pragma clang attribute pop
+#endif // __clang__
 
-#endif // __x86_64__ || __i386__
+#endif // x86 / x86_64

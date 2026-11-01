@@ -2,7 +2,7 @@ name: layer_canvas
 description: >-
   High-performance 2D compositing engine for Dart and Flutter, using
   Blend2D via FFI to render typed Layers to PNG/BMP/QOI at native speed.
-version: 0.1.0
+version: 0.1.1
 homepage: https://github.com/code3743/layer_canvas
 repository: https://github.com/code3743/layer_canvas
 issue_tracker: https://github.com/code3743/layer_canvas/issues
@@ -11,12 +11,12 @@ environment:
   sdk: ^3.12.2
 
 dependencies:
-  code_assets: ^1.0.0
+  code_assets: ^2.1.0
   ffi: ^2.1.4
-  hooks: ^2.0.2
+  hooks: ^2.2.0
   logging: ^1.3.0
-  native_toolchain_c: ^0.19.2
-  xml: ^7.0.1
+  native_toolchain_c: ^0.19.5
+  xml: ^7.1.0
 
 dev_dependencies:
   ffigen: ^20.1.1

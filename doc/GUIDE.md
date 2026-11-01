@@ -742,7 +742,7 @@ LayerImageSource.memory(bytes) // Uint8List of encoded image data
 
 ## Architecture
 
-![Architecture: Dart public API → Dart FFI (lc_render_scene) → C++ engine → LcGraphicsBackend vtable → Blend2D backend](https://raw.githubusercontent.com/code3743/layer_canvas/main/architecture.png)
+![Architecture: Dart public API → Dart FFI (lc_render_scene) → C++ engine → LcGraphicsBackend vtable → Blend2D backend](https://raw.githubusercontent.com/code3743/layer_canvas/main/doc/architecture.png)
 
 The engine core (`engine.cpp`) is decoupled from Blend2D through the
 `LcGraphicsBackend` function-pointer table defined in `src/backend/backend.h`.

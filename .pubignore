@@ -51,6 +51,6 @@ third_party/fonts/roboto/Roboto-Regular.ttf
 # README/GUIDE images are linked as absolute raw.githubusercontent.com
 # URLs (pub.dev doesn't reliably rewrite relative image paths), so the
 # published package doesn't need to carry these binary files itself.
-/architecture.png
+/doc/architecture.png
 /doc/hero.png
 /doc/watermark_demo.png
