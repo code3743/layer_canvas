@@ -1,3 +1,14 @@
+## 0.1.1
+
+* **Dependencies** — bumped `code_assets` to `^2.1.0`, `native_toolchain_c`
+  to `^0.19.5`, `hooks` to `^2.2.0` and `xml` to `^7.1.0`, so every direct
+  dependency is on its latest release. No public API or `hook/build.dart`
+  changes were needed.
+* **CI** — the workflow now runs formatting, `dart analyze --fatal-infos`
+  and `dart pub publish --dry-run` once, then the test suite on Ubuntu,
+  macOS and Windows.
+* Moved `architecture.png` to `doc/` (the `GUIDE.md` link was updated).
+
 ## 0.1.0
 
 * **`Layer.clipToBounds`** — clips a layer's own painted content to its own
