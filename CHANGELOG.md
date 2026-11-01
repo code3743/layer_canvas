@@ -4,6 +4,11 @@
   to `^0.19.5`, `hooks` to `^2.2.0` and `xml` to `^7.1.0`, so every direct
   dependency is on its latest release. No public API or `hook/build.dart`
   changes were needed.
+* **Windows build fix** — the SSSE3/SSE4.2 wrappers (`src/blend2d_x86_*.cpp`)
+  were guarded by `__x86_64__`/`__i386__`, which MSVC does not define, so on
+  Windows they compiled to nothing and linking failed with unresolved
+  `*_ssse3`/`*_sse4_2` symbols. They now also accept `_M_X64`/`_M_IX86`, and
+  the clang-only target pragma is applied on clang only.
 * **CI** — the workflow now runs formatting, `dart analyze --fatal-infos`
   and `dart pub publish --dry-run` once, then the test suite on Ubuntu,
   macOS and Windows.
